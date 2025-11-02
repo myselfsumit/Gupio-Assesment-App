@@ -1,16 +1,18 @@
-import React, { useEffect, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, Pressable } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, Animated, Pressable } from 'react-native';
 import { ParkingSlot } from '../features/parking/parkingSlice';
 
 type Props = {
   visible: boolean;
   slot?: ParkingSlot;
-  onConfirm: () => void;
+  onConfirm: (vehicleNumber?: string) => void;
   onCancel: () => void;
   showSuccess?: boolean;
 };
 
 const BookingModal: React.FC<Props> = ({ visible, slot, onConfirm, onCancel, showSuccess = false }) => {
+  const [vehicleNumber, setVehicleNumber] = useState('');
+
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -100,6 +102,13 @@ const BookingModal: React.FC<Props> = ({ visible, slot, onConfirm, onCancel, sho
     }
   }, [visible, showSuccess, backdropOpacity, opacityAnim, scaleAnim, successScale, successOpacity]);
 
+  // Reset vehicle info when modal is closed
+  useEffect(() => {
+    if (!visible) {
+      setVehicleNumber('');
+    }
+  }, [visible]);
+
   if (!slot && !showSuccess) return null;
 
   return (
@@ -141,6 +150,15 @@ const BookingModal: React.FC<Props> = ({ visible, slot, onConfirm, onCancel, sho
                 },
               ]}
             >
+              {/* Close Button */}
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={onCancel}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.closeIcon}>✕</Text>
+              </TouchableOpacity>
+
               {/* Header with Icon */}
               <View style={styles.header}>
                 <View style={styles.iconContainer}>
@@ -172,27 +190,31 @@ const BookingModal: React.FC<Props> = ({ visible, slot, onConfirm, onCancel, sho
                 </View>
               </View>
 
-              {/* Info Message */}
-              <View style={styles.infoBox}>
-                <Text style={styles.infoIcon}>ℹ️</Text>
-                <Text style={styles.infoText}>
-                  Your booking will be confirmed once you tap the confirm button below.
-                </Text>
+              {/* Vehicle Information */}
+              <View style={styles.vehicleContainer}>
+                <Text style={styles.vehicleNumberLabel}>Vehicle Number</Text>
+                <View style={styles.vehicleNumberContainer}>
+                  <TextInput
+                    style={styles.vehicleNumberInput}
+                    placeholder="Enter your vehicle number"
+                    placeholderTextColor="#94a3b8"
+                    value={vehicleNumber}
+                    onChangeText={setVehicleNumber}
+                    autoCapitalize="characters"
+                  />
+                </View>
               </View>
 
               {/* Action Buttons */}
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={onCancel}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.cancelButtonText}>Close</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.confirmButton}
-                  onPress={onConfirm}
+                  style={[
+                    styles.confirmButton,
+                    !vehicleNumber.trim() && styles.confirmButtonDisabled
+                  ]}
+                  onPress={() => onConfirm(vehicleNumber)}
                   activeOpacity={0.85}
+                  disabled={!vehicleNumber.trim()}
                 >
                   <View style={styles.confirmButtonContent}>
                     <Text style={styles.confirmButtonText}>Confirm</Text>
@@ -212,7 +234,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 8,
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -221,14 +243,34 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: '#fff',
     borderRadius: 24,
-    width: '95%',
-    maxWidth: 420,
-    padding: 28,
+    width: '100%',
+    maxWidth: 600,
+    padding: 32,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
     elevation: 10,
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+  },
+  closeIcon: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#6b7280',
   },
   successContainer: {
     backgroundColor: '#fff',
@@ -321,7 +363,7 @@ const styles = StyleSheet.create({
   slotCard: {
     backgroundColor: '#f8fafc',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: '#e5e7eb',
@@ -330,7 +372,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   slotLabel: {
     fontSize: 12,
@@ -350,17 +392,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   slotId: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
     color: '#111',
-    marginBottom: 16,
+    marginBottom: 12,
     letterSpacing: 2,
   },
   slotDetails: {
     flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    paddingTop: 16,
+    paddingTop: 12,
   },
   detailItem: {
     flex: 1,
@@ -400,30 +442,34 @@ const styles = StyleSheet.create({
     color: '#1e40af',
     lineHeight: 18,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+  vehicleContainer: {
+    marginBottom: 24,
   },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-  },
-  cancelButtonText: {
-    fontSize: 16,
+  vehicleNumberLabel: {
+    fontSize: 14,
     fontWeight: '700',
     color: '#374151',
+    marginBottom: 12,
     letterSpacing: 0.3,
   },
+  vehicleNumberContainer: {
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    backgroundColor: '#f9fafb',
+  },
+  vehicleNumberInput: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111',
+  },
+  buttonContainer: {
+    marginTop: 8,
+  },
   confirmButton: {
-    flex: 1.8,
+    width: '100%',
     backgroundColor: '#0ea5e9',
     borderRadius: 16,
     paddingVertical: 18,
@@ -448,6 +494,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#fff',
     letterSpacing: 0.5,
+  },
+  confirmButtonDisabled: {
+    backgroundColor: '#cbd5e1',
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });
 

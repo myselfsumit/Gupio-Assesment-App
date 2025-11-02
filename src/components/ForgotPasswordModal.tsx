@@ -262,7 +262,7 @@ const ForgotPasswordModal: React.FC<Props> = ({ visible, onClose, onSuccess }) =
                   disabled={!employeeId.trim()}
                 >
                   <Text style={styles.primaryButtonText}>Send OTP</Text>
-                  <Text style={styles.primaryButtonIcon}>→</Text>
+                  {/* <Text style={styles.primaryButtonIcon}>→</Text> */}
                 </TouchableOpacity>
               </>
             ) : (
@@ -319,7 +319,7 @@ const ForgotPasswordModal: React.FC<Props> = ({ visible, onClose, onSuccess }) =
                   disabled={!isOtpComplete}
                 >
                   <Text style={styles.primaryButtonText}>Verify OTP</Text>
-                  <Text style={styles.primaryButtonIcon}>✓</Text>
+                  {/* <Text style={styles.primaryButtonIcon}>✓</Text> */}
                 </TouchableOpacity>
 
                 {/* Back Button */}
@@ -328,7 +328,7 @@ const ForgotPasswordModal: React.FC<Props> = ({ visible, onClose, onSuccess }) =
                   onPress={handleBack}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.backButtonText}>← Back</Text>
+                  <Text style={styles.backButtonText}>Back</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
   },
   modalContainer: {
     backgroundColor: '#1e293b',

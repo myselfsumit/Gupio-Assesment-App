@@ -1,5 +1,5 @@
 import React, { useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
 import { ParkingSlot } from '../features/parking/parkingSlice';
 
 const { width } = Dimensions.get('window');
@@ -11,7 +11,7 @@ const CELL_MARGIN = 5; // Margin between cells
 const totalPadding = SCREEN_PADDING * 2; // Left + Right screen padding
 const totalCellMargins = CELL_MARGIN * 2 * (NUM_COLUMNS - 1); // Margins between cells (left+right for each gap)
 const availableWidth = width - totalPadding - totalCellMargins;
-const CELL_WIDTH = Math.floor(availableWidth / NUM_COLUMNS);
+const CELL_WIDTH = Math.floor(availableWidth / NUM_COLUMNS - 1.95);
 const CELL_HEIGHT = CELL_WIDTH * 1.35; // 35% more height for better UX and touch target
 
 type Props = {
@@ -94,44 +94,21 @@ const SlotCell: React.FC<SlotCellProps> = React.memo(({ slot, onPress }) => {
 SlotCell.displayName = 'SlotCell';
 
 const ParkingGrid: React.FC<Props> = React.memo(({ slots, onPressSlot }) => {
-  const renderItem = useCallback(
-    ({ item }: { item: ParkingSlot }) => (
-      <SlotCell slot={item} onPress={() => onPressSlot(item)} />
-    ),
-    [onPressSlot]
-  );
-
-  const getItemLayout = useCallback(
-    (_data: any, index: number) => {
-      const row = Math.floor(index / NUM_COLUMNS);
-      const rowHeight = CELL_HEIGHT + (CELL_MARGIN * 2);
-      return {
-        length: rowHeight,
-        offset: row * rowHeight,
-        index,
-      };
-    },
-    []
-  );
-
-  const keyExtractor = useCallback((item: ParkingSlot) => item.id, []);
+  // Group slots into rows
+  const rows = [];
+  for (let i = 0; i < slots.length; i += NUM_COLUMNS) {
+    rows.push(slots.slice(i, i + NUM_COLUMNS));
+  }
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={slots}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        numColumns={NUM_COLUMNS}
-        contentContainerStyle={styles.flatListContent}
-        columnWrapperStyle={styles.row}
-        getItemLayout={getItemLayout}
-        initialNumToRender={NUM_COLUMNS * 4}
-        maxToRenderPerBatch={NUM_COLUMNS * 3}
-        windowSize={5}
-        removeClippedSubviews={true}
-        showsVerticalScrollIndicator={false}
-      />
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={styles.row}>
+          {row.map((slot) => (
+            <SlotCell key={slot.id} slot={slot} onPress={() => onPressSlot(slot)} />
+          ))}
+        </View>
+      ))}
     </View>
   );
 });
@@ -142,16 +119,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     minHeight: 300,
-  },
-  flatListContent: {
     paddingVertical: 8,
-    paddingHorizontal: 0,
   },
   row: {
+    flexDirection: 'row',
     justifyContent: 'flex-start',
     alignItems: 'center',
     marginBottom: CELL_MARGIN * 2,
-    paddingHorizontal: 0,
   },
   cellContainer: {
     width: CELL_WIDTH,

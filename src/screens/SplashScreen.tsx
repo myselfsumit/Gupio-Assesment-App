@@ -1,5 +1,12 @@
 import React, { useEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, Animated, StatusBar, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  StatusBar,
+  Dimensions,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
 
@@ -7,7 +14,7 @@ const { width } = Dimensions.get('window');
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 
-const SPLASH_DURATION = 1500; // Total splash duration - Optimized for faster loading
+const SPLASH_DURATION = 1500;
 
 const SplashScreen: React.FC<Props> = ({ navigation }) => {
   // Animation refs - using useRef to prevent recreation
@@ -19,7 +26,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const logoScale = useRef(new Animated.Value(0.5)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
   const loaderOpacity = useRef(new Animated.Value(0)).current;
-  
+
   // Loading dots animation
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
@@ -102,7 +109,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
             duration: 400,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       );
     };
 
@@ -136,7 +143,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         inputRange: [0, 1],
         outputRange: [0.8, 1.2],
       }),
-    [dot1]
+    [dot1],
   );
 
   const dot2Scale = useMemo(
@@ -145,7 +152,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         inputRange: [0, 1],
         outputRange: [0.8, 1.2],
       }),
-    [dot2]
+    [dot2],
   );
 
   const dot3Scale = useMemo(
@@ -154,7 +161,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         inputRange: [0, 1],
         outputRange: [0.8, 1.2],
       }),
-    [dot3]
+    [dot3],
   );
 
   return (
@@ -288,7 +295,7 @@ const styles = StyleSheet.create({
     left: -width * 0.2,
   },
   carContainer: {
-    marginBottom: 48,
+    marginBottom: 3,
     alignItems: 'center',
     justifyContent: 'center',
   },

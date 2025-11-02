@@ -6,9 +6,10 @@ type Props = {
   slotId?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  onInteraction?: () => void;
 };
 
-const CancelConfirmationModal: React.FC<Props> = ({ visible, slotId, onConfirm, onCancel }) => {
+const CancelConfirmationModal: React.FC<Props> = ({ visible, slotId, onConfirm, onCancel, onInteraction }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -63,9 +64,23 @@ const CancelConfirmationModal: React.FC<Props> = ({ visible, slotId, onConfirm, 
     }
   }, [visible, backdropOpacity, opacityAnim, scaleAnim]);
 
+  const handleInteraction = () => {
+    onInteraction?.();
+  };
+
+  const handleCancel = () => {
+    handleInteraction();
+    onCancel();
+  };
+
+  const handleConfirm = () => {
+    handleInteraction();
+    onConfirm();
+  };
+
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onCancel}>
-      <Pressable style={styles.backdropContainer} onPress={onCancel}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={handleCancel}>
+      <Pressable style={styles.backdropContainer} onPress={handleCancel}>
         <Animated.View
           style={[
             styles.backdrop,
@@ -74,7 +89,12 @@ const CancelConfirmationModal: React.FC<Props> = ({ visible, slotId, onConfirm, 
             },
           ]}
         />
-        <Pressable onPress={(e) => e.stopPropagation()}>
+        <Pressable 
+          onPress={(e) => {
+            e.stopPropagation();
+            handleInteraction();
+          }}
+        >
           <Animated.View
             style={[
               styles.modalContainer,
@@ -115,14 +135,14 @@ const CancelConfirmationModal: React.FC<Props> = ({ visible, slotId, onConfirm, 
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={styles.noButton}
-                onPress={onCancel}
+                onPress={handleCancel}
                 activeOpacity={0.7}
               >
                 <Text style={styles.noButtonText}>No</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.yesButton}
-                onPress={onConfirm}
+                onPress={handleConfirm}
                 activeOpacity={0.85}
               >
                 <Text style={styles.yesButtonText}>Yes, Cancel</Text>
@@ -262,4 +282,3 @@ const styles = StyleSheet.create({
 });
 
 export default React.memo(CancelConfirmationModal);
-

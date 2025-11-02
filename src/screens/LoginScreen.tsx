@@ -1,25 +1,31 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  KeyboardAvoidingView, 
-  Platform, 
-  StyleSheet, 
-  Animated, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  Animated,
   ScrollView,
-  Dimensions
+  Dimensions,
+  StyleSheet,
 } from 'react-native';
+import { useDispatch } from 'react-redux';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
+import { login } from '../features/auth/authSlice';
+
+const { height } = Dimensions.get('window');
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
-const { width, height } = Dimensions.get('window');
+const AnimatedView = Animated.createAnimatedComponent(View);
+const AnimatedText = Animated.createAnimatedComponent(Text);
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
+  const dispatch = useDispatch();
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -29,49 +35,67 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     password: false,
   });
 
-  // Animation refs
+  // Optimized fade animations - no slide, just smooth fade
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const logoScale = useRef(new Animated.Value(0)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const headerFade = useRef(new Animated.Value(0)).current;
+  const formFade = useRef(new Animated.Value(0)).current;
+  const footerFade = useRef(new Animated.Value(0)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Staggered entrance animations
-    Animated.sequence([
+    // Smooth fade-in sequence with staggered timing for better UX
+    Animated.parallel([
+      // Overall container fade
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      // Logo animation with scale and fade
       Animated.parallel([
         Animated.spring(logoScale, {
           toValue: 1,
-          tension: 50,
+          tension: 40,
           friction: 7,
           useNativeDriver: true,
         }),
-      ]),
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
+        Animated.timing(logoOpacity, {
           toValue: 1,
           duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 50,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
+          delay: 100,
           useNativeDriver: true,
         }),
       ]),
+      // Header fade
+      Animated.timing(headerFade, {
+        toValue: 1,
+        duration: 700,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+      // Form fade
+      Animated.timing(formFade, {
+        toValue: 1,
+        duration: 700,
+        delay: 400,
+        useNativeDriver: true,
+      }),
+      // Footer fade
+      Animated.timing(footerFade, {
+        toValue: 1,
+        duration: 600,
+        delay: 600,
+        useNativeDriver: true,
+      }),
     ]).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fadeAnim, logoScale, logoOpacity, headerFade, formFade, footerFade]);
 
   const handleSignIn = () => {
-    // Animate button press
+    // Save customer ID to Redux
+    dispatch(login({ customerId: employeeId }));
+    
     Animated.sequence([
       Animated.timing(buttonScale, {
         toValue: 0.95,
@@ -83,106 +107,126 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         duration: 100,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      navigation.replace('Dashboard');
-    });
+    ]).start(() => navigation.replace('Dashboard'));
   };
 
-  const handleForgotPassword = () => {
-    setShowForgotPasswordModal(true);
-  };
+  const handleForgotPassword = () => setShowForgotPasswordModal(true);
 
   const handleForgotPasswordSuccess = () => {
     setShowForgotPasswordModal(false);
     navigation.replace('Dashboard');
   };
 
+  const handleSignup = () => {
+    navigation.navigate('Signup');
+  };
+
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-      style={styles.root}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.keyboardContainer}
     >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Background Gradient Effect */}
-        <View style={styles.backgroundContainer}>
-          <View style={styles.gradientCircle1} />
-          <View style={styles.gradientCircle2} />
-        </View>
+        {/* Main Container - Smooth Fade Only */}
+        <AnimatedView style={[styles.mainContainer, { opacity: fadeAnim }]}>
+          {/* Car Icon - Optimized Animation */}
+          <AnimatedView style={[styles.logoContainer, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
+            <AnimatedView style={styles.logoIcon}>
+              <AnimatedText style={styles.logoIconText}>🚗</AnimatedText>
+            </AnimatedView>
 
-        <Animated.View 
-          style={[
-            styles.container,
-            { 
-              opacity: fadeAnim,
-              transform: [
-                { translateY: slideAnim },
-                { scale: scaleAnim },
-              ],
-            },
-          ]}
-        >
-          {/* Header with Logo */}
-          <Animated.View 
-            style={[
-              styles.header,
-              {
-                transform: [{ scale: logoScale }],
-              },
-            ]}
-          >
-            <View style={styles.logoContainer}>
-              <View style={styles.logoInner}>
-                <Text style={styles.logoIcon}>🚗</Text>
-              </View>
-              <View style={styles.logoGlow} />
-            </View>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Enter your credentials to access Smart Parking</Text>
-          </Animated.View>
+            <AnimatedView
+              style={[
+                styles.logoGlow,
+                {
+                  opacity: logoOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 0.3],
+                  }),
+                },
+              ]}
+            />
+          </AnimatedView>
 
-          {/* Form Container */}
-          <View style={styles.form}>
-            {/* Employee ID Field */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>
-                <Text style={styles.labelIcon}>👤</Text> Employee ID
+          {/* Header - Smooth Fade */}
+          <AnimatedView style={[styles.header, { opacity: headerFade }]}>
+            {/* Welcome Back Test  */}
+            <AnimatedText style={styles.welcomeText}>
+              Welcome Back
+            </AnimatedText>
+            <AnimatedText style={styles.subtitleText}>
+              Enter your credentials to access Smart Parking
+            </AnimatedText>
+          </AnimatedView>
+
+          {/* Form - Smooth Fade */}
+          <AnimatedView style={[styles.formContainer, { opacity: formFade }]}>
+            {/* Employee ID */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>
+                <Text style={styles.iconSpacing}>👤</Text> Employee ID
               </Text>
-              <View style={[
-                styles.inputContainer,
-                isFocused.employeeId && styles.inputContainerFocused,
-              ]}>
+
+              <AnimatedView
+                style={[
+                  styles.inputContainer,
+                  {
+                    borderColor: isFocused.employeeId ? '#3b82f6' : '#334155',
+                    shadowColor: isFocused.employeeId ? '#3b82f6' : '#000',
+                    shadowOffset: {
+                      width: 0,
+                      height: isFocused.employeeId ? 0 : 2,
+                    },
+                    shadowOpacity: isFocused.employeeId ? 0.3 : 0.1,
+                    shadowRadius: isFocused.employeeId ? 12 : 8,
+                    elevation: isFocused.employeeId ? 6 : 3,
+                  },
+                ]}
+              >
                 <TextInput
-                  style={styles.input}
+                  style={styles.textInput}
                   placeholder="Enter your employee ID"
                   placeholderTextColor="#94a3b8"
                   value={employeeId}
                   onChangeText={setEmployeeId}
                   keyboardType="default"
                   autoCapitalize="none"
-                  onFocus={() => setIsFocused({ ...isFocused, employeeId: true })}
-                  onBlur={() => setIsFocused({ ...isFocused, employeeId: false })}
+                  onFocus={() =>
+                    setIsFocused({ ...isFocused, employeeId: true })
+                  }
+                  onBlur={() =>
+                    setIsFocused({ ...isFocused, employeeId: false })
+                  }
                 />
-              </View>
+              </AnimatedView>
             </View>
 
-            {/* Password Field */}
-            <View style={styles.fieldGroup}>
-              <View style={styles.passwordHeader}>
-                <Text style={styles.label}>
-                  <Text style={styles.labelIcon}>🔒</Text> Password
-                </Text>
-                <TouchableOpacity onPress={handleForgotPassword} activeOpacity={0.7}>
-                  <Text style={styles.forgotPassword}>Forgot?</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={[
-                styles.passwordContainer,
-                isFocused.password && styles.inputContainerFocused,
-              ]}>
+            {/* Password */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>
+                <Text style={styles.iconSpacing}>🔒</Text> Password
+              </Text>
+
+              <AnimatedView
+                style={[
+                  styles.passwordContainer,
+                  {
+                    borderColor: isFocused.password ? '#3b82f6' : '#334155',
+                    shadowColor: isFocused.password ? '#3b82f6' : '#000',
+                    shadowOffset: {
+                      width: 0,
+                      height: isFocused.password ? 0 : 2,
+                    },
+                    shadowOpacity: isFocused.password ? 0.3 : 0.1,
+                    shadowRadius: isFocused.password ? 12 : 8,
+                    elevation: isFocused.password ? 6 : 3,
+                  },
+                ]}
+              >
                 <TextInput
                   style={styles.passwordInput}
                   placeholder="Enter your password"
@@ -194,44 +238,69 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                   onFocus={() => setIsFocused({ ...isFocused, password: true })}
                   onBlur={() => setIsFocused({ ...isFocused, password: false })}
                 />
+
                 <TouchableOpacity
-                  style={styles.eyeIcon}
+                  style={styles.passwordToggle}
                   onPress={() => setShowPassword(!showPassword)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.eyeIconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                  <Text style={styles.toggleIcon}>
+                    {showPassword ? '👁️' : '👁️‍🗨️'}
+                  </Text>
                 </TouchableOpacity>
-              </View>
+              </AnimatedView>
             </View>
 
-            {/* Sign In Button */}
+            {/* Sign In */}
             <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
               <TouchableOpacity
-                style={[
-                  styles.signInButton,
-                  (employeeId && password) && styles.signInButtonActive,
-                ]}
                 onPress={handleSignIn}
                 activeOpacity={0.9}
                 disabled={!employeeId || !password}
+                style={[
+                  styles.signInButton,
+                  {
+                    backgroundColor:
+                      employeeId && password ? '#3b82f6' : '#334155',
+                    shadowColor: employeeId && password ? '#3b82f6' : undefined,
+                    shadowOffset:
+                      employeeId && password
+                        ? { width: 0, height: 8 }
+                        : undefined,
+                    shadowOpacity: employeeId && password ? 0.4 : undefined,
+                    shadowRadius: employeeId && password ? 16 : undefined,
+                    elevation: employeeId && password ? 8 : 3,
+                    opacity: employeeId && password ? 1 : 0.6,
+                  },
+                ]}
               >
                 <Text style={styles.signInButtonText}>Sign In</Text>
-                <Text style={styles.signInButtonIcon}>→</Text>
               </TouchableOpacity>
             </Animated.View>
-          </View>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              Secure login with{' '}
-              <Text style={styles.footerHighlight}>enterprise authentication</Text>
-            </Text>
-          </View>
-        </Animated.View>
+            {/* Forgot Password Link */}
+            <View style={styles.forgotContainer}>
+              <TouchableOpacity
+                onPress={handleForgotPassword}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.forgotText}>Forgot your password?</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Signup Link */}
+            <View style={styles.signupContainer}>
+              <Text style={styles.signupText}>
+                Don't have Employee ID?{' '}
+                <Text style={styles.signupLink} onPress={handleSignup}>
+                  Signup
+                </Text>
+              </Text>
+            </View>
+          </AnimatedView>
+        </AnimatedView>
       </ScrollView>
 
-      {/* Forgot Password Modal */}
       <ForgotPasswordModal
         visible={showForgotPasswordModal}
         onClose={() => setShowForgotPasswordModal(false)}
@@ -241,44 +310,18 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
+export default React.memo(LoginScreen);
+
 const styles = StyleSheet.create({
-  root: {
+  keyboardContainer: {
     flex: 1,
     backgroundColor: '#0f172a',
   },
-  scrollContent: {
+  scrollContainer: {
     flexGrow: 1,
     minHeight: height,
   },
-  backgroundContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: 'hidden',
-  },
-  gradientCircle1: {
-    position: 'absolute',
-    width: width * 1.2,
-    height: width * 1.2,
-    borderRadius: width * 0.6,
-    backgroundColor: '#1e40af',
-    opacity: 0.15,
-    top: -width * 0.3,
-    right: -width * 0.2,
-  },
-  gradientCircle2: {
-    position: 'absolute',
-    width: width * 1.0,
-    height: width * 1.0,
-    borderRadius: width * 0.5,
-    backgroundColor: '#3b82f6',
-    opacity: 0.1,
-    bottom: -width * 0.2,
-    left: -width * 0.2,
-  },
-  container: {
+  mainContainer: {
     flex: 1,
     paddingHorizontal: 28,
     paddingTop: Platform.OS === 'ios' ? 80 : 60,
@@ -286,20 +329,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 56,
-  },
   logoContainer: {
-    width: 100,
-    height: 100,
     borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 32,
     marginBottom: 32,
     position: 'relative',
   },
-  logoInner: {
+  logoIcon: {
     width: 100,
     height: 100,
     borderRadius: 50,
@@ -313,19 +351,23 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
   },
+  logoIconText: {
+    fontSize: 52,
+    transform: [{ scaleX: -1 }],
+  },
   logoGlow: {
     position: 'absolute',
     width: 120,
     height: 120,
     borderRadius: 60,
     backgroundColor: '#3b82f6',
-    opacity: 0.3,
     zIndex: 1,
   },
-  logoIcon: {
-    fontSize: 52,
+  header: {
+    alignItems: 'center',
+    marginBottom: 56,
   },
-  title: {
+  welcomeText: {
     fontSize: 36,
     fontWeight: '900',
     color: '#ffffff',
@@ -333,7 +375,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     textAlign: 'center',
   },
-  subtitle: {
+  subtitleText: {
     fontSize: 16,
     color: '#94a3b8',
     textAlign: 'center',
@@ -341,44 +383,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     fontWeight: '500',
   },
-  form: {
+  formContainer: {
     marginBottom: 40,
   },
-  fieldGroup: {
+  inputGroup: {
     marginBottom: 26,
   },
-  label: {
+  inputLabel: {
     fontSize: 15,
     fontWeight: '700',
     color: '#e2e8f0',
     marginBottom: 12,
     letterSpacing: -0.2,
   },
-  labelIcon: {
+  iconSpacing: {
     marginRight: 8,
     fontSize: 16,
   },
   inputContainer: {
     borderWidth: 2,
-    borderColor: '#334155',
     borderRadius: 16,
     backgroundColor: '#1e293b',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
-  inputContainerFocused: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#1e293b',
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  input: {
+  textInput: {
     paddingHorizontal: 20,
     paddingVertical: 18,
     fontSize: 16,
@@ -391,23 +418,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  forgotPassword: {
+  forgotContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  forgotText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#60a5fa',
     letterSpacing: -0.1,
   },
+  signupContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  signupText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+  signupLink: {
+    color: '#60a5fa',
+    fontWeight: '700',
+  },
   passwordContainer: {
     position: 'relative',
     borderWidth: 2,
-    borderColor: '#334155',
     borderRadius: 16,
     backgroundColor: '#1e293b',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   passwordInput: {
     paddingHorizontal: 20,
@@ -417,7 +455,7 @@ const styles = StyleSheet.create({
     color: '#f1f5f9',
     fontWeight: '500',
   },
-  eyeIcon: {
+  passwordToggle: {
     position: 'absolute',
     right: 18,
     top: 0,
@@ -427,39 +465,23 @@ const styles = StyleSheet.create({
     padding: 4,
     zIndex: 10,
   },
-  eyeIconText: {
+  toggleIcon: {
     fontSize: 24,
   },
   signInButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#334155',
     borderRadius: 16,
     paddingVertical: 20,
     marginTop: 8,
-    opacity: 0.6,
     gap: 10,
-  },
-  signInButtonActive: {
-    backgroundColor: '#3b82f6',
-    opacity: 1,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
   },
   signInButtonText: {
     color: '#ffffff',
     fontWeight: '700',
     fontSize: 18,
     letterSpacing: 0.5,
-  },
-  signInButtonIcon: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '700',
   },
   footer: {
     marginTop: 'auto',
@@ -478,5 +500,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-
-export default React.memo(LoginScreen);

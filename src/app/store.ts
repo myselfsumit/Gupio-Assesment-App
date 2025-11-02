@@ -1,9 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
 import parkingReducer from '../../src/features/parking/parkingSlice';
+import authReducer from '../../src/features/auth/authSlice';
 
 export const store = configureStore({
   reducer: {
     parking: parkingReducer,
+    auth: authReducer,
   },
 });
 

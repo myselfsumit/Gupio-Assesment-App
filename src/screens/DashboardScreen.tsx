@@ -3,14 +3,15 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   Animated,
   ScrollView,
-
+  StyleSheet,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const AnimatedView = Animated.createAnimatedComponent(View);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
 
@@ -34,7 +35,6 @@ const StatCard: React.FC<StatCardProps> = ({
   const numberAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Optimized: Faster staggered animation for cards
     Animated.sequence([
       Animated.delay(delay),
       Animated.parallel([
@@ -52,12 +52,11 @@ const StatCard: React.FC<StatCardProps> = ({
       ]),
     ]).start();
 
-    // Optimized: Faster number counting animation
     Animated.timing(numberAnim, {
       toValue: value,
       duration: 800,
       delay: delay + 100,
-      useNativeDriver: false, // Can't use native driver for text
+      useNativeDriver: false,
     }).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -68,29 +67,26 @@ const StatCard: React.FC<StatCardProps> = ({
     const listener = numberAnim.addListener(({ value: val }) => {
       setDisplayValue(Math.round(val));
     });
-    return () => {
-      numberAnim.removeListener(listener);
-    };
+    return () => numberAnim.removeListener(listener);
   }, [numberAnim]);
 
   return (
-    <Animated.View
+    <AnimatedView
       style={[
-        styles.card,
-        {
-          backgroundColor: color,
-          opacity: opacityAnim,
-          transform: [{ scale: scaleAnim }],
-        },
+        styles.statCard,
+        { backgroundColor: color, opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
       ]}
     >
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardIcon}>{icon}</Text>
+      <View style={styles.statCardIconContainer}>
+        <Text style={styles.statCardIcon}>{icon}</Text>
       </View>
-      <Text style={styles.cardLabel}>{label}</Text>
-      <Text style={styles.cardValue}>{displayValue}</Text>
-      <View style={styles.cardShadow} />
-    </Animated.View>
+
+      <Text style={styles.statCardLabel}>{label}</Text>
+
+      <Text style={styles.statCardValue}>{displayValue}</Text>
+
+      <View style={styles.statCardCircle} />
+    </AnimatedView>
   );
 };
 
@@ -99,10 +95,9 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
 
-  // Fixed stats as per requirements: Total Spots: 100, Available: 30
   const total = 100;
   const available = 30;
-  const booked = total - available; // 70
+  const booked = total - available;
 
   const greeting = useMemo(() => {
     const h = new Date().getHours();
@@ -111,18 +106,15 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     return 'Good Evening';
   }, []);
 
-  // Employee name (can be fetched from auth state later)
   const employeeName = 'Sumit Kaushal';
 
   useEffect(() => {
-    // Header animation
     Animated.timing(headerAnim, {
       toValue: 1,
       duration: 300,
       useNativeDriver: true,
     }).start();
 
-    // Optimized: Faster animations for better performance
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -140,141 +132,110 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
   }, []);
 
   return (
-    <SafeAreaView style={styles.root}>
-      {/* Header with Car Icon + GUPIO + Profile */}
-      <Animated.View
-        style={[
-          styles.header,
-          {
-            opacity: headerAnim,
-            transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }],
-          },
-        ]}
-      >
-        <View style={styles.headerLeft}>
-          <View style={styles.ovalContainer}>
-            <View style={styles.iconWrapper}>
-              <Text style={styles.carIcon}>🚗</Text>
-            </View>
-            <Text style={styles.appName}>GUPIO</Text>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.logoContainer}>
+          <View style={styles.logoIconWrapper}>
+            <Text style={styles.logoIcon}>🚗</Text>
           </View>
+          <Text style={styles.logoText}>GUPIO</Text>
         </View>
-        <TouchableOpacity style={styles.profileButton} activeOpacity={0.7}>
-          <View style={styles.profileIcon}>
-            <Text style={styles.profileIconText}>👤</Text>
+        <TouchableOpacity 
+          style={styles.profileButton} 
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('Profile')}
+        >
+          <View style={styles.profileIconContainer}>
+            <Text style={styles.profileIcon}>👤</Text>
           </View>
         </TouchableOpacity>
-      </Animated.View>
+      </View>
 
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+      <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.container}>
-          {/* Greeting Section */}
-          <Animated.View
-            style={[
-              styles.greetingSection,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <Text style={styles.greeting}>{greeting}!</Text>
-            <Text style={styles.name}>{employeeName}</Text>
-            <Text style={styles.subtitle}>Plan your parking with ease</Text>
-          </Animated.View>
+        <AnimatedView style={styles.contentContainer}>
+          <AnimatedView style={[styles.greetingContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            <Text style={styles.greetingText}>{greeting}!</Text>
+            <Text style={styles.employeeName}>{employeeName}</Text>
+            <Text style={styles.subtitleText}>Plan your parking with ease</Text>
+          </AnimatedView>
 
-          {/* Stats Cards Row */}
-          <View style={styles.statsRow}>
+          <View style={styles.statCardsRow}>
             <StatCard
               label="Total Spots"
-              value={100}
+              value={total}
               color="#0ea5e9"
               icon="📍"
               delay={50}
             />
             <StatCard
               label="Available Spots"
-              value={30}
+              value={available}
               color="#22c55e"
               icon="✅"
               delay={100}
             />
             <StatCard
               label="Booked"
-              value={70}
+              value={booked}
               color="#ef4444"
               icon="🔒"
               delay={150}
             />
           </View>
 
-          {/* Quick Stats Info */}
-          <Animated.View
-            style={[
-              styles.infoCard,
-              {
-                opacity: fadeAnim,
-              },
-            ]}
-          >
-            <View style={styles.infoRow}>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Availability</Text>
-                <Text style={styles.infoValue}>
+          <AnimatedView style={[styles.metricsCard, { opacity: fadeAnim }]}>
+            <View style={styles.metricsRow}>
+              <View style={styles.metricItem}>
+                <Text style={styles.metricLabel}>Availability</Text>
+                <Text style={styles.metricValue}>
                   {Math.round((available / total) * 100)}%
                 </Text>
               </View>
-              <View style={styles.infoDivider} />
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Occupancy</Text>
-                <Text style={styles.infoValue}>
+              <View style={styles.metricDivider} />
+              <View style={styles.metricItem}>
+                <Text style={styles.metricLabel}>Occupancy</Text>
+                <Text style={styles.metricValue}>
                   {Math.round((booked / total) * 100)}%
                 </Text>
               </View>
             </View>
-          </Animated.View>
-        </View>
+          </AnimatedView>
+        </AnimatedView>
       </ScrollView>
 
-      {/* Bottom CTA Button - Fixed at bottom */}
-      <Animated.View
-        style={[
-          styles.bottomContainer,
-          {
-            opacity: fadeAnim,
-          },
-        ]}
-      >
+      <AnimatedView style={[styles.bottomButtonContainer, { opacity: fadeAnim }]}>
         <TouchableOpacity
-          style={styles.cta}
+          style={styles.findParkingButton}
           onPress={() => navigation.navigate('Parking')}
           activeOpacity={0.8}
         >
-          <View style={styles.ctaContent}>
-            <View style={styles.ctaIconWrapper}>
-              <Text style={styles.ctaIcon}>🚗</Text>
+          <View style={styles.findParkingButtonContent}>
+            <View style={styles.buttonIconWrapper}>
+              <Text style={styles.buttonCarIcon}>🚗</Text>
             </View>
-            <Text style={styles.ctaText}>Find Parking Slot</Text>
-            <View style={styles.ctaIconWrapper}>
-              <Text style={styles.ctaArrow}>🔍</Text>
+            <Text style={styles.findParkingButtonText}>Find Parking Slot</Text>
+            <View style={styles.buttonIconWrapper}>
+              <Text style={styles.buttonSearchIcon}>🔍</Text>
             </View>
           </View>
         </TouchableOpacity>
-      </Animated.View>
+      </AnimatedView>
     </SafeAreaView>
   );
 };
 
+export default DashboardScreen;
+
 const styles = StyleSheet.create({
-  root: {
+  container: {
     flex: 1,
     backgroundColor: '#f8fafc',
   },
   header: {
+    backgroundColor: '#fff',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -283,7 +244,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 8,
-    backgroundColor: '#fff',
     borderRadius: 30,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -293,42 +253,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ovalContainer: {
+  logoContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'center',
     gap: 8,
   },
-  iconWrapper: {
+  logoIconWrapper: {
     height: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  carIcon: {
+  logoIcon: {
     fontSize: 20,
-    transform: [{ scaleX: -1 }], // Face right
+    transform: [{ scaleX: -1 }],
     lineHeight: 20,
-    includeFontPadding: false,
-    textAlignVertical: 'center',
   },
-  appName: {
+  logoText: {
     fontSize: 18,
     fontWeight: '800',
     color: '#111',
     letterSpacing: 1.5,
     lineHeight: 22,
-    includeFontPadding: false,
-    textAlignVertical: 'center',
   },
   profileButton: {
     padding: 4,
   },
-  profileIcon: {
+  profileIconContainer: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -338,51 +289,48 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#e5e7eb',
   },
-  profileIconText: {
+  profileIcon: {
     fontSize: 22,
-  },
-  scrollView: {
-    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 100, // Space for bottom button
+    paddingBottom: 100,
   },
-  container: {
+  contentContainer: {
     paddingHorizontal: 24,
     paddingTop: 32,
     paddingBottom: 40,
   },
-  greetingSection: {
+  greetingContainer: {
     marginBottom: 32,
   },
-  greeting: {
+  greetingText: {
     fontSize: 32,
     fontWeight: '800',
     color: '#111',
     marginBottom: 4,
     letterSpacing: -0.5,
   },
-  name: {
+  employeeName: {
     fontSize: 28,
     fontWeight: '700',
     color: '#0ea5e9',
     marginBottom: 8,
   },
-  subtitle: {
+  subtitleText: {
     fontSize: 16,
     color: '#6b7280',
     lineHeight: 24,
     marginTop: 4,
   },
-  statsRow: {
+  statCardsRow: {
     flexDirection: 'row',
     marginBottom: 24,
     gap: 12,
   },
-  card: {
+  statCard: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: 10,
     padding: 18,
     position: 'relative',
     overflow: 'hidden',
@@ -392,7 +340,28 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 5,
   },
-  cardShadow: {
+  statCardIconContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
+  },
+  statCardIcon: {
+    fontSize: 28,
+  },
+  statCardLabel: {
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  statCardValue: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 32,
+    letterSpacing: -1,
+  },
+  statCardCircle: {
     position: 'absolute',
     top: -20,
     right: -20,
@@ -401,28 +370,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 8,
-  },
-  cardIcon: {
-    fontSize: 28,
-  },
-  cardLabel: {
-    color: 'rgba(255,255,255,0.95)',
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-    letterSpacing: 0.5,
-  },
-  cardValue: {
-    color: '#fff',
-    fontWeight: '900',
-    fontSize: 32,
-    letterSpacing: -1,
-  },
-  infoCard: {
+  metricsCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
@@ -433,31 +381,31 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  infoRow: {
+  metricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
   },
-  infoItem: {
+  metricItem: {
     flex: 1,
     alignItems: 'center',
   },
-  infoLabel: {
+  metricLabel: {
     fontSize: 14,
     color: '#6b7280',
     fontWeight: '500',
     marginBottom: 8,
   },
-  infoValue: {
+  metricValue: {
     fontSize: 24,
     fontWeight: '800',
     color: '#111',
   },
-  infoDivider: {
+  metricDivider: {
     width: 1,
     backgroundColor: '#e5e7eb',
     marginHorizontal: 20,
   },
-  bottomContainer: {
+  bottomButtonContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -465,14 +413,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 20,
     paddingTop: 16,
-    backgroundColor: '#f8fafc',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 8,
+    marginBottom: 20,
   },
-  cta: {
+  findParkingButton: {
     backgroundColor: '#0ea5e9',
     borderRadius: 16,
     paddingVertical: 18,
@@ -483,38 +431,29 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 6,
   },
-  ctaContent: {
+  findParkingButtonContent: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'center',
     gap: 10,
   },
-  ctaIconWrapper: {
+  buttonIconWrapper: {
     height: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  ctaIcon: {
+  buttonCarIcon: {
     fontSize: 20,
-    lineHeight: 20,
-    includeFontPadding: false,
-    textAlignVertical: 'center',
+    transform: [{ scaleX: -1 }],
   },
-  ctaText: {
+  findParkingButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: 0.5,
     lineHeight: 22,
-    includeFontPadding: false,
-    textAlignVertical: 'center',
   },
-  ctaArrow: {
+  buttonSearchIcon: {
     fontSize: 18,
-    lineHeight: 18,
-    includeFontPadding: false,
-    textAlignVertical: 'center',
   },
 });
-
-export default DashboardScreen;
