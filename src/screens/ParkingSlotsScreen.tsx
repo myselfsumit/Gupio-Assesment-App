@@ -22,12 +22,10 @@ import { RootStackParamList } from '../navigation';
 import ParkingGrid from '../components/ParkingGrid';
 import BookingModal from '../components/BookingModal';
 import CancelConfirmationModal from '../components/CancelConfirmationModal';
-import InactivityReminderModal from '../components/InactivityReminderModal';
 import {
   ParkingSlot,
   bookSlot,
   cancelSlot,
-  setInactivityWarning,
 } from '../features/parking/parkingSlice';
 import Toast from 'react-native-toast-message';
 
@@ -36,7 +34,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ParkingSlots'>;
 const ParkingSlotsScreen: React.FC<Props> = ({ route, navigation }) => {
   const { section } = route.params;
   const dispatch = useDispatch();
-  const { slots, inactivityWarningAt } = useSelector(
+  const { slots } = useSelector(
     (s: RootState) => s.parking,
   );
   const [selected, setSelected] = useState<ParkingSlot | undefined>(undefined);
@@ -74,61 +72,6 @@ const ParkingSlotsScreen: React.FC<Props> = ({ route, navigation }) => {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
-  // Inactivity warning - only when CancelConfirmationModal is visible
-  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Start inactivity timer when CancelConfirmationModal opens
-  useEffect(() => {
-    // Clear any existing timer
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-      inactivityTimerRef.current = null;
-    }
-
-    // Reset warning when modal closes
-    if (!showCancelConfirm) {
-      if (inactivityWarningAt) {
-        dispatch(setInactivityWarning(null));
-      }
-      return;
-    }
-
-    // Only track inactivity when CancelConfirmationModal is visible
-    if (showCancelConfirm && slotToCancel) {
-      // Set timer for inactivity (30 seconds = 30000ms)
-      inactivityTimerRef.current = setTimeout(() => {
-        dispatch(setInactivityWarning(Date.now()));
-      }, 30000);
-    }
-
-    return () => {
-      if (inactivityTimerRef.current) {
-        clearTimeout(inactivityTimerRef.current);
-        inactivityTimerRef.current = null;
-      }
-    };
-  }, [showCancelConfirm, slotToCancel, dispatch, inactivityWarningAt]);
-
-  // Handle user interaction - resets the inactivity timer
-  const handleModalInteraction = useCallback(() => {
-    // Clear existing timer
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-      inactivityTimerRef.current = null;
-    }
-
-    // Clear inactivity warning if it was shown
-    if (inactivityWarningAt) {
-      dispatch(setInactivityWarning(null));
-    }
-
-    // Restart the timer if modal is still visible
-    if (showCancelConfirm && slotToCancel) {
-      inactivityTimerRef.current = setTimeout(() => {
-        dispatch(setInactivityWarning(Date.now()));
-      }, 30000);
-    }
-  }, [showCancelConfirm, slotToCancel, dispatch, inactivityWarningAt]);
 
   const handleSlotPress = useCallback((slot: ParkingSlot) => {
     if (slot.status === 'available') {
@@ -160,40 +103,23 @@ const ParkingSlotsScreen: React.FC<Props> = ({ route, navigation }) => {
         setIsBooking(false);
         Toast.show({
           type: 'success',
-          text1: 'Booking Confirmed!',
+          text1: 'Picked Up Vehicle Successfully!!',
           text2: `Slot ${selectedId} has been booked successfully`,
         });
       }, 2000);
     }, 1500);
   }, [selected, isBooking, dispatch]);
 
-  const handleInactivityCancel = useCallback(() => {
-    dispatch(setInactivityWarning(null));
-    // Reset timer when showing cancel confirmation
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-      inactivityTimerRef.current = null;
-    }
-    // Restart timer for CancelConfirmationModal
-    if (slotToCancel) {
-      inactivityTimerRef.current = setTimeout(() => {
-        dispatch(setInactivityWarning(Date.now()));
-      }, 30000);
-    }
-    setShowCancelConfirm(true);
-  }, [dispatch, slotToCancel]);
-
   const confirmCancelBooking = useCallback(() => {
     if (!slotToCancel) return;
 
     dispatch(cancelSlot({ slotId: slotToCancel }));
-    dispatch(setInactivityWarning(null));
     setShowCancelConfirm(false);
     setSlotToCancel(undefined);
 
     Toast.show({
       type: 'success',
-      text1: 'Booking Cancelled',
+      text1: 'Dropped Vehicle',
       text2: `Slot ${slotToCancel} is now available`,
     });
   }, [slotToCancel, dispatch]);
@@ -322,26 +248,6 @@ const ParkingSlotsScreen: React.FC<Props> = ({ route, navigation }) => {
         onCancel={() => {
           setShowCancelConfirm(false);
           setSlotToCancel(undefined);
-        }}
-        onInteraction={handleModalInteraction}
-      />
-      <InactivityReminderModal
-        visible={!!inactivityWarningAt && !!showCancelConfirm}
-        slotId={slotToCancel}
-        onCancel={handleInactivityCancel}
-        onKeepBooking={() => {
-          dispatch(setInactivityWarning(null));
-          // Reset timer when user chooses to keep booking
-          if (inactivityTimerRef.current) {
-            clearTimeout(inactivityTimerRef.current);
-            inactivityTimerRef.current = null;
-          }
-          // Restart timer for CancelConfirmationModal
-          if (showCancelConfirm && slotToCancel) {
-            inactivityTimerRef.current = setTimeout(() => {
-              dispatch(setInactivityWarning(Date.now()));
-            }, 30000);
-          }
         }}
       />
     </SafeAreaView>

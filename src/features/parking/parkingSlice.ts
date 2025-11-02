@@ -15,7 +15,6 @@ export type ParkingSlot = {
 type ParkingState = {
   slots: ParkingSlot[];
   activeBookingId?: string;
-  inactivityWarningAt?: number | null;
 };
 
 const createInitialSlots = (): ParkingSlot[] => {
@@ -24,23 +23,15 @@ const createInitialSlots = (): ParkingSlot[] => {
   
   // Create 100 total slots: 30 available, 70 booked
   let slotCount = 0;
-  // let availableCount = 0;
-  // let bookedCount = 0;
   
   sections.forEach(section => {
     // Distribute slots across sections: US ~34, LS ~33, B3 ~33
     const slotsPerSection = section === 'US' ? 34 : 33;
     
-    for (let i = 1; i <= slotsPerSection; i += 1) {
+    for (let i = 1; i <= slotsPerSection; i+=1) {
       slotCount++;
       // First 30 slots are available, rest are booked
       const status: ParkingStatus = slotCount <= 30 ? 'available' : 'booked';
-      
-      // if (status === 'available') {
-      //   availableCount++;
-      // } else {
-      //   bookedCount++;
-      // }
       
       slots.push({
         id: `${section}-${i.toString().padStart(2, '0')}`,
@@ -56,7 +47,6 @@ const createInitialSlots = (): ParkingSlot[] => {
 const initialState: ParkingState = {
   slots: createInitialSlots(),
   activeBookingId: undefined,
-  inactivityWarningAt: null,
 };
 
 const parkingSlice = createSlice({
@@ -88,13 +78,10 @@ const parkingSlice = createSlice({
         state.activeBookingId = undefined;
       }
     },
-    setInactivityWarning: (state, action: PayloadAction<number | null>) => {
-      state.inactivityWarningAt = action.payload;
-    },
   },
 });
 
-export const { bookSlot, cancelSlot, setInactivityWarning } = parkingSlice.actions;
+export const { bookSlot, cancelSlot } = parkingSlice.actions;
 export default parkingSlice.reducer;
 
 

@@ -11,10 +11,14 @@ import {
   Dimensions,
   StyleSheet,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useDispatch } from 'react-redux';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
 import { login } from '../features/auth/authSlice';
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { SignupFormData, signupSchema } from '../validation/Validation';
 
 const { height } = Dimensions.get('window');
 
@@ -25,24 +29,31 @@ const AnimatedText = Animated.createAnimatedComponent(Text);
 
 const SignupScreen: React.FC<Props> = ({ navigation }) => {
   const dispatch = useDispatch();
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [employeeId, setEmployeeId] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [gender, setGender] = useState<'Male' | 'Female' | ''>('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [isFocused, setIsFocused] = useState({
-    fullName: false,
-    email: false,
-    phoneNumber: false,
-    employeeId: false,
-    password: false,
-    confirmPassword: false,
+  // Form with Zod validation
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isValid },
+    setValue,
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      fullName: '',
+      email: '',
+      phoneNumber: '',
+      employeeId: '',
+      password: '',
+      confirmPassword: '',
+      gender: 'Male',
+    },
   });
+
+
 
   // Optimized fade animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -95,14 +106,9 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
     ]).start();
   }, [fadeAnim, logoScale, logoOpacity, headerFade, formFade, footerFade]);
 
-  const handleSignup = () => {
-    // Validate password match
-    if (password !== confirmPassword) {
-      return;
-    }
-
-    // Save customer ID to Redux
-    dispatch(login({ customerId: employeeId }));
+  const handleSignup = (data: SignupFormData) => {
+    // Save customer ID to Redux (data.employeeId is already uppercase due to transform)
+    dispatch(login({ customerId: data.employeeId }));
     
     Animated.sequence([
       Animated.timing(buttonScale, {
@@ -117,8 +123,6 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
       }),
     ]).start(() => navigation.replace('Dashboard'));
   };
-
-  const isFormValid = fullName && email && phoneNumber && employeeId && password && confirmPassword && gender && password === confirmPassword;
 
   return (
     <KeyboardAvoidingView
@@ -138,7 +142,7 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.backButton}
             activeOpacity={0.7}
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Icon name="arrow-back" size={24} color="#ffffff" />
           </TouchableOpacity>
 
           {/* Car Icon */}
@@ -176,30 +180,40 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.inputLabel}>
                 <Text style={styles.iconSpacing}>👤</Text> Full Name
               </Text>
-              <AnimatedView
-                style={[
-                  styles.inputContainer,
-                  {
-                    borderColor: isFocused.fullName ? '#3b82f6' : '#334155',
-                    shadowColor: isFocused.fullName ? '#3b82f6' : '#000',
-                    shadowOffset: { width: 0, height: isFocused.fullName ? 0 : 2 },
-                    shadowOpacity: isFocused.fullName ? 0.3 : 0.1,
-                    shadowRadius: isFocused.fullName ? 12 : 8,
-                    elevation: isFocused.fullName ? 6 : 3,
-                  },
-                ]}
-              >
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your full name"
-                  placeholderTextColor="#94a3b8"
-                  value={fullName}
-                  onChangeText={setFullName}
-                  autoCapitalize="words"
-                  onFocus={() => setIsFocused({ ...isFocused, fullName: true })}
-                  onBlur={() => setIsFocused({ ...isFocused, fullName: false })}
-                />
-              </AnimatedView>
+              <Controller
+                control={control}
+                name="fullName"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <>
+                    <AnimatedView
+                      style={[
+                        styles.inputContainer,
+                        {
+                          borderColor: errors.fullName ? '#ef4444' : '#334155',
+                          shadowColor: errors.fullName ? '#ef4444' : '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 8,
+                          elevation: 3,
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Enter your full name"
+                        placeholderTextColor="#94a3b8"
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        autoCapitalize="words"
+                      />
+                    </AnimatedView>
+                    {errors.fullName && (
+                      <Text style={styles.errorText}>{errors.fullName.message}</Text>
+                    )}
+                  </>
+                )}
+              />
             </View>
 
             {/* Email */}
@@ -207,31 +221,41 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.inputLabel}>
                 <Text style={styles.iconSpacing}>📧</Text> Email
               </Text>
-              <AnimatedView
-                style={[
-                  styles.inputContainer,
-                  {
-                    borderColor: isFocused.email ? '#3b82f6' : '#334155',
-                    shadowColor: isFocused.email ? '#3b82f6' : '#000',
-                    shadowOffset: { width: 0, height: isFocused.email ? 0 : 2 },
-                    shadowOpacity: isFocused.email ? 0.3 : 0.1,
-                    shadowRadius: isFocused.email ? 12 : 8,
-                    elevation: isFocused.email ? 6 : 3,
-                  },
-                ]}
-              >
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#94a3b8"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  onFocus={() => setIsFocused({ ...isFocused, email: true })}
-                  onBlur={() => setIsFocused({ ...isFocused, email: false })}
-                />
-              </AnimatedView>
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <>
+                    <AnimatedView
+                      style={[
+                        styles.inputContainer,
+                        {
+                          borderColor: errors.email ? '#ef4444' : '#334155',
+                          shadowColor: errors.email ? '#ef4444' : '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 8,
+                          elevation: 3,
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Enter your email"
+                        placeholderTextColor="#94a3b8"
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
+                    </AnimatedView>
+                    {errors.email && (
+                      <Text style={styles.errorText}>{errors.email.message}</Text>
+                    )}
+                  </>
+                )}
+              />
             </View>
 
             {/* Phone Number */}
@@ -239,30 +263,41 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.inputLabel}>
                 <Text style={styles.iconSpacing}>📱</Text> Phone Number
               </Text>
-              <AnimatedView
-                style={[
-                  styles.inputContainer,
-                  {
-                    borderColor: isFocused.phoneNumber ? '#3b82f6' : '#334155',
-                    shadowColor: isFocused.phoneNumber ? '#3b82f6' : '#000',
-                    shadowOffset: { width: 0, height: isFocused.phoneNumber ? 0 : 2 },
-                    shadowOpacity: isFocused.phoneNumber ? 0.3 : 0.1,
-                    shadowRadius: isFocused.phoneNumber ? 12 : 8,
-                    elevation: isFocused.phoneNumber ? 6 : 3,
-                  },
-                ]}
-              >
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your phone number"
-                  placeholderTextColor="#94a3b8"
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  keyboardType="phone-pad"
-                  onFocus={() => setIsFocused({ ...isFocused, phoneNumber: true })}
-                  onBlur={() => setIsFocused({ ...isFocused, phoneNumber: false })}
-                />
-              </AnimatedView>
+              <Controller
+                control={control}
+                name="phoneNumber"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <>
+                    <AnimatedView
+                      style={[
+                        styles.inputContainer,
+                        {
+                          borderColor: errors.phoneNumber ? '#ef4444' : '#334155',
+                          shadowColor: errors.phoneNumber ? '#ef4444' : '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 8,
+                          elevation: 3,
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Enter your phone number"
+                        placeholderTextColor="#94a3b8"
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        keyboardType="phone-pad"
+                        maxLength={10}
+                      />
+                    </AnimatedView>
+                    {errors.phoneNumber && (
+                      <Text style={styles.errorText}>{errors.phoneNumber.message}</Text>
+                    )}
+                  </>
+                )}
+              />
             </View>
 
             {/* Employee ID */}
@@ -270,30 +305,41 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.inputLabel}>
                 <Text style={styles.iconSpacing}>🆔</Text> Employee ID
               </Text>
-              <AnimatedView
-                style={[
-                  styles.inputContainer,
-                  {
-                    borderColor: isFocused.employeeId ? '#3b82f6' : '#334155',
-                    shadowColor: isFocused.employeeId ? '#3b82f6' : '#000',
-                    shadowOffset: { width: 0, height: isFocused.employeeId ? 0 : 2 },
-                    shadowOpacity: isFocused.employeeId ? 0.3 : 0.1,
-                    shadowRadius: isFocused.employeeId ? 12 : 8,
-                    elevation: isFocused.employeeId ? 6 : 3,
-                  },
-                ]}
-              >
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your employee ID"
-                  placeholderTextColor="#94a3b8"
-                  value={employeeId}
-                  onChangeText={setEmployeeId}
-                  autoCapitalize="none"
-                  onFocus={() => setIsFocused({ ...isFocused, employeeId: true })}
-                  onBlur={() => setIsFocused({ ...isFocused, employeeId: false })}
-                />
-              </AnimatedView>
+              <Controller
+                control={control}
+                name="employeeId"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <>
+                    <AnimatedView
+                      style={[
+                        styles.inputContainer,
+                        {
+                          borderColor: errors.employeeId ? '#ef4444' : '#334155',
+                          shadowColor: errors.employeeId ? '#ef4444' : '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 8,
+                          elevation: 3,
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Enter your employee ID"
+                        placeholderTextColor="#94a3b8"
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        autoCapitalize="characters"
+                        maxLength={6}
+                      />
+                    </AnimatedView>
+                    {errors.employeeId && (
+                      <Text style={styles.errorText}>{errors.employeeId.message}</Text>
+                    )}
+                  </>
+                )}
+              />
             </View>
 
             {/* Gender Selection */}
@@ -301,34 +347,51 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.inputLabel}>
                 <Text style={styles.iconSpacing}>👥</Text> Gender
               </Text>
-              <View style={styles.genderContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.genderButton,
-                    gender === 'Male' && styles.genderButtonActive,
-                  ]}
-                  onPress={() => setGender('Male')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[
-                    styles.genderButtonText,
-                    gender === 'Male' && styles.genderButtonTextActive,
-                  ]}>Male</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.genderButton,
-                    gender === 'Female' && styles.genderButtonActive,
-                  ]}
-                  onPress={() => setGender('Female')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[
-                    styles.genderButtonText,
-                    gender === 'Female' && styles.genderButtonTextActive,
-                  ]}>Female</Text>
-                </TouchableOpacity>
-              </View>
+              <Controller
+                control={control}
+                name="gender"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <View style={styles.genderContainer}>
+                      <TouchableOpacity
+                        style={[
+                          styles.genderButton,
+                          value === 'Male' && styles.genderButtonActive,
+                        ]}
+                        onPress={() => {
+                          onChange('Male');
+                          setValue('gender', 'Male');
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[
+                          styles.genderButtonText,
+                          value === 'Male' && styles.genderButtonTextActive,
+                        ]}>Male</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.genderButton,
+                          value === 'Female' && styles.genderButtonActive,
+                        ]}
+                        onPress={() => {
+                          onChange('Female');
+                          setValue('gender', 'Female');
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[
+                          styles.genderButtonText,
+                          value === 'Female' && styles.genderButtonTextActive,
+                        ]}>Female</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {errors.gender && (
+                      <Text style={styles.errorText}>{errors.gender.message}</Text>
+                    )}
+                  </>
+                )}
+              />
             </View>
 
             {/* Password */}
@@ -336,40 +399,50 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.inputLabel}>
                 <Text style={styles.iconSpacing}>🔒</Text> Password
               </Text>
-              <AnimatedView
-                style={[
-                  styles.passwordContainer,
-                  {
-                    borderColor: isFocused.password ? '#3b82f6' : '#334155',
-                    shadowColor: isFocused.password ? '#3b82f6' : '#000',
-                    shadowOffset: { width: 0, height: isFocused.password ? 0 : 2 },
-                    shadowOpacity: isFocused.password ? 0.3 : 0.1,
-                    shadowRadius: isFocused.password ? 12 : 8,
-                    elevation: isFocused.password ? 6 : 3,
-                  },
-                ]}
-              >
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#94a3b8"
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={setPassword}
-                  autoCapitalize="none"
-                  onFocus={() => setIsFocused({ ...isFocused, password: true })}
-                  onBlur={() => setIsFocused({ ...isFocused, password: false })}
-                />
-                <TouchableOpacity
-                  style={styles.passwordToggle}
-                  onPress={() => setShowPassword(!showPassword)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.toggleIcon}>
-                    {showPassword ? '👁️' : '👁️‍🗨️'}
-                  </Text>
-                </TouchableOpacity>
-              </AnimatedView>
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <>
+                    <AnimatedView
+                      style={[
+                        styles.passwordContainer,
+                        {
+                          borderColor: errors.password ? '#ef4444' : '#334155',
+                          shadowColor: errors.password ? '#ef4444' : '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 8,
+                          elevation: 3,
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        style={styles.passwordInput}
+                        placeholder="Enter your password"
+                        placeholderTextColor="#94a3b8"
+                        secureTextEntry={!showPassword}
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        autoCapitalize="none"
+                      />
+                      <TouchableOpacity
+                        style={styles.passwordToggle}
+                        onPress={() => setShowPassword(!showPassword)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.toggleIcon}>
+                          {showPassword ? '👁️' : '👁️‍🗨️'}
+                        </Text>
+                      </TouchableOpacity>
+                    </AnimatedView>
+                    {errors.password && (
+                      <Text style={styles.errorText}>{errors.password.message}</Text>
+                    )}
+                  </>
+                )}
+              />
             </View>
 
             {/* Confirm Password */}
@@ -377,61 +450,68 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.inputLabel}>
                 <Text style={styles.iconSpacing}>🔒</Text> Confirm Password
               </Text>
-              <AnimatedView
-                style={[
-                  styles.passwordContainer,
-                  {
-                    borderColor: isFocused.confirmPassword ? '#3b82f6' : '#334155',
-                    shadowColor: isFocused.confirmPassword ? '#3b82f6' : '#000',
-                    shadowOffset: { width: 0, height: isFocused.confirmPassword ? 0 : 2 },
-                    shadowOpacity: isFocused.confirmPassword ? 0.3 : 0.1,
-                    shadowRadius: isFocused.confirmPassword ? 12 : 8,
-                    elevation: isFocused.confirmPassword ? 6 : 3,
-                  },
-                ]}
-              >
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Confirm your password"
-                  placeholderTextColor="#94a3b8"
-                  secureTextEntry={!showConfirmPassword}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  autoCapitalize="none"
-                  onFocus={() => setIsFocused({ ...isFocused, confirmPassword: true })}
-                  onBlur={() => setIsFocused({ ...isFocused, confirmPassword: false })}
-                />
-                <TouchableOpacity
-                  style={styles.passwordToggle}
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.toggleIcon}>
-                    {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
-                  </Text>
-                </TouchableOpacity>
-              </AnimatedView>
-              {confirmPassword && password !== confirmPassword && (
-                <Text style={styles.errorText}>Passwords do not match</Text>
-              )}
+              <Controller
+                control={control}
+                name="confirmPassword"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <>
+                    <AnimatedView
+                      style={[
+                        styles.passwordContainer,
+                        {
+                          borderColor: errors.confirmPassword ? '#ef4444' : '#334155',
+                          shadowColor: errors.confirmPassword ? '#ef4444' : '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 8,
+                          elevation: 3,
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        style={styles.passwordInput}
+                        placeholder="Confirm your password"
+                        placeholderTextColor="#94a3b8"
+                        secureTextEntry={!showConfirmPassword}
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        autoCapitalize="none"
+                      />
+                      <TouchableOpacity
+                        style={styles.passwordToggle}
+                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.toggleIcon}>
+                          {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                        </Text>
+                      </TouchableOpacity>
+                    </AnimatedView>
+                    {errors.confirmPassword && (
+                      <Text style={styles.errorText}>{errors.confirmPassword.message}</Text>
+                    )}
+                  </>
+                )}
+              />
             </View>
 
             {/* Signup Button */}
             <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
               <TouchableOpacity
-                onPress={handleSignup}
+                onPress={handleSubmit(handleSignup)}
                 activeOpacity={0.9}
-                disabled={!isFormValid}
+                disabled={!isValid}
                 style={[
                   styles.signupButton,
                   {
-                    backgroundColor: isFormValid ? '#3b82f6' : '#334155',
-                    shadowColor: isFormValid ? '#3b82f6' : undefined,
-                    shadowOffset: isFormValid ? { width: 0, height: 8 } : undefined,
-                    shadowOpacity: isFormValid ? 0.4 : undefined,
-                    shadowRadius: isFormValid ? 16 : undefined,
-                    elevation: isFormValid ? 8 : 3,
-                    opacity: isFormValid ? 1 : 0.6,
+                    backgroundColor: isValid ? '#3b82f6' : '#334155',
+                    shadowColor: isValid ? '#3b82f6' : undefined,
+                    shadowOffset: isValid ? { width: 0, height: 8 } : undefined,
+                    shadowOpacity: isValid ? 0.4 : undefined,
+                    shadowRadius: isValid ? 16 : undefined,
+                    elevation: isValid ? 8 : 3,
+                    opacity: isValid ? 1 : 0.6,
                   },
                 ]}
               >
@@ -486,11 +566,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 100,
-  },
-  backIcon: {
-    fontSize: 24,
-    color: '#f1f5f9',
-    fontWeight: '900',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   logoContainer: {
     borderRadius: 50,
@@ -627,12 +707,6 @@ const styles = StyleSheet.create({
   toggleIcon: {
     fontSize: 24,
   },
-  errorText: {
-    fontSize: 12,
-    color: '#ef4444',
-    marginTop: 6,
-    fontWeight: '600',
-  },
   signupButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -660,6 +734,13 @@ const styles = StyleSheet.create({
     color: '#60a5fa',
     fontWeight: '700',
     textDecorationLine: 'underline',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#ef4444',
+    marginTop: 6,
+    fontWeight: '600',
+    paddingHorizontal: 4,
   },
   footer: {
     marginTop: 'auto',

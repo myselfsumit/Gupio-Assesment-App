@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Image,
   TextInput,
-  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useSelector, useDispatch } from 'react-redux';
@@ -16,7 +15,12 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootState } from '../app/store';
 import { RootStackParamList } from '../navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { updateProfile } from '../features/auth/authSlice';
+import { updateProfile, logout } from '../features/auth/authSlice';
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { ProfileUpdateFormData, profileUpdateSchema } from '../validation/Validation';
+import SuccessModal from '../components/SuccessModal';
+import LogoutConfirmationModal from '../components/LogoutConfirmationModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
@@ -28,14 +32,27 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const auth = useSelector((s: RootState) => s.auth);
   const [isEditing, setIsEditing] = useState(false);
   const [profilePhoto, _setProfilePhoto] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   
-  // User details state - getting from Redux auth state
-  const [userDetails, setUserDetails] = useState({
-    name: auth.name || '',
-    email: auth.email || '',
-    phone: auth.phone || '',
-    customerId: auth.customerId || '',
+  // Form with Zod validation
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isValid },
+    reset,
+  } = useForm<ProfileUpdateFormData>({
+    resolver: zodResolver(profileUpdateSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      name: auth.name || '',
+      email: auth.email || '',
+      phone: auth.phone || '',
+    },
   });
+
+  const customerId = auth.customerId || '';
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -45,15 +62,14 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
     return slots.filter(s => s.status === 'booked' && s.bookedBy === auth.customerId).length;
   }, [slots, auth.customerId]);
 
-  // Update user details when auth state changes
+  // Update form values when auth state changes
   useEffect(() => {
-    setUserDetails({
+    reset({
       name: auth.name || '',
       email: auth.email || '',
       phone: auth.phone || '',
-      customerId: auth.customerId || '',
     });
-  }, [auth]);
+  }, [auth, reset]);
 
   useEffect(() => {
     Animated.parallel([
@@ -74,61 +90,38 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const handlePhotoSelect = () => {
     // For now, we'll use a placeholder approach
     // In production, you'd integrate with react-native-image-picker
-    Alert.alert(
-      'Profile Photo',
-      'Choose an option',
-      [
-        { text: 'Camera', onPress: () => console.log('Open camera') },
-        { text: 'Gallery', onPress: () => console.log('Open gallery') },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-      { cancelable: true }
-    );
+    console.log('Profile photo selection - to be implemented');
   };
 
-  const handleSave = () => {
-    // Basic validation
-    const trimmedName = userDetails.name?.trim();
-    const trimmedEmail = userDetails.email?.trim();
-    const trimmedPhone = userDetails.phone?.trim();
-
-    // Email validation regex
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!trimmedName || trimmedName.length < 2) {
-      Alert.alert('Validation Error', 'Please enter a valid name (at least 2 characters)');
-      return;
-    }
-
-    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
-      Alert.alert('Validation Error', 'Please enter a valid email address');
-      return;
-    }
-
-    if (!trimmedPhone || trimmedPhone.length < 10) {
-      Alert.alert('Validation Error', 'Please enter a valid phone number (at least 10 digits)');
-      return;
-    }
-
-    // Save to Redux
+  const handleSave = (data: ProfileUpdateFormData) => {
+    // Save to Redux (data is already validated and transformed)
     dispatch(updateProfile({
-      name: trimmedName,
-      email: trimmedEmail,
-      phone: trimmedPhone,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
     }));
     setIsEditing(false);
-    Alert.alert('Success', 'Profile updated successfully');
+    setShowSuccessModal(true);
   };
 
   const handleCancel = () => {
     setIsEditing(false);
     // Reset to original values from Redux
-    setUserDetails({
+    reset({
       name: auth.name || '',
       email: auth.email || '',
       phone: auth.phone || '',
-      customerId: auth.customerId || '',
     });
+  };
+
+  const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutModal(false);
+    dispatch(logout());
+    navigation.replace('Login');
   };
 
   return (
@@ -203,7 +196,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               </View>
               <View style={styles.statsDivider} />
                 <View style={styles.statsItem}>
-                  <Text style={[styles.statsNumber, styles.sizeCustomerId]}>{userDetails.customerId}</Text>
+                  <Text style={[styles.statsNumber, styles.sizeCustomerId]}>{customerId}</Text>
                   <Text style={styles.statsLabel}>Customer ID</Text>
                 </View>
             </View>
@@ -216,15 +209,30 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Full Name</Text>
                 {isEditing ? (
-                  <TextInput
-                    style={styles.inputField}
-                    value={userDetails.name}
-                    onChangeText={(text) => setUserDetails({ ...userDetails, name: text })}
-                    placeholder="Enter your name"
+                  <Controller
+                    control={control}
+                    name="name"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <>
+                        <TextInput
+                          style={[
+                            styles.inputField,
+                            errors.name && styles.inputFieldError
+                          ]}
+                          value={value}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                          placeholder="Enter your name"
+                        />
+                        {errors.name && (
+                          <Text style={styles.errorText}>{errors.name.message}</Text>
+                        )}
+                      </>
+                    )}
                   />
                 ) : (
                   <Text style={styles.fieldValue}>
-                    {userDetails.name || 'Not provided'}
+                    {auth.name || 'Not provided'}
                   </Text>
                 )}
               </View>
@@ -235,17 +243,32 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Email</Text>
                 {isEditing ? (
-                  <TextInput
-                    style={styles.inputField}
-                    value={userDetails.email}
-                    onChangeText={(text) => setUserDetails({ ...userDetails, email: text })}
-                    placeholder="Enter your email"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
+                  <Controller
+                    control={control}
+                    name="email"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <>
+                        <TextInput
+                          style={[
+                            styles.inputField,
+                            errors.email && styles.inputFieldError
+                          ]}
+                          value={value}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                          placeholder="Enter your email"
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                        />
+                        {errors.email && (
+                          <Text style={styles.errorText}>{errors.email.message}</Text>
+                        )}
+                      </>
+                    )}
                   />
                 ) : (
                   <Text style={styles.fieldValue}>
-                    {userDetails.email || 'Not provided'}
+                    {auth.email || 'Not provided'}
                   </Text>
                 )}
               </View>
@@ -256,16 +279,32 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Phone Number</Text>
                 {isEditing ? (
-                  <TextInput
-                    style={styles.inputField}
-                    value={userDetails.phone}
-                    onChangeText={(text) => setUserDetails({ ...userDetails, phone: text })}
-                    placeholder="Enter your phone"
-                    keyboardType="phone-pad"
+                  <Controller
+                    control={control}
+                    name="phone"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <>
+                        <TextInput
+                          style={[
+                            styles.inputField,
+                            errors.phone && styles.inputFieldError
+                          ]}
+                          value={value}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                          placeholder="Enter your phone"
+                          keyboardType="phone-pad"
+                          maxLength={10}
+                        />
+                        {errors.phone && (
+                          <Text style={styles.errorText}>{errors.phone.message}</Text>
+                        )}
+                      </>
+                    )}
                   />
                 ) : (
                   <Text style={styles.fieldValue}>
-                    {userDetails.phone || 'Not provided'}
+                    {auth.phone || 'Not provided'}
                   </Text>
                 )}
               </View>
@@ -273,13 +312,25 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 
             {/* Edit/Save Buttons */}
             {!isEditing ? (
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => setIsEditing(true)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.editButtonText}> Edit Profile</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => setIsEditing(true)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.editButtonText}> Edit Profile</Text>
+                </TouchableOpacity>
+                
+                {/* Logout Button */}
+                <TouchableOpacity
+                  style={styles.logoutButton}
+                  onPress={handleLogout}
+                  activeOpacity={0.85}
+                >
+                  <Icon name="exit-to-app" size={20} color="#fff" style={styles.logoutIcon} />
+                  <Text style={styles.logoutButtonText}>Logout</Text>
+                </TouchableOpacity>
+              </>
             ) : (
               <View style={styles.buttonRow}>
                 <TouchableOpacity
@@ -290,9 +341,14 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.saveButton]}
-                  onPress={handleSave}
+                  style={[
+                    styles.actionButton,
+                    styles.saveButton,
+                    !isValid && styles.saveButtonDisabled
+                  ]}
+                  onPress={handleSubmit(handleSave)}
                   activeOpacity={0.85}
+                  disabled={!isValid}
                 >
                   <Text style={styles.saveButtonText}>Save Changes</Text>
                 </TouchableOpacity>
@@ -301,6 +357,21 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </ScrollView>
       </AnimatedView>
+
+      {/* Success Modal */}
+      <SuccessModal
+        visible={showSuccessModal}
+        title="Profile Updated"
+        message="Your profile has been updated successfully!"
+        onClose={() => setShowSuccessModal(false)}
+      />
+
+      {/* Logout Confirmation Modal */}
+      <LogoutConfirmationModal
+        visible={showLogoutModal}
+        onConfirm={confirmLogout}
+        onCancel={() => setShowLogoutModal(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -544,8 +615,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+    marginBottom: 12,
   },
   editButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  logoutButton: {
+    backgroundColor: '#ef4444',
+    borderRadius: 16,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logoutIcon: {
+    marginRight: 8,
+  },
+  logoutButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '800',
@@ -586,6 +680,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  inputFieldError: {
+    borderColor: '#ef4444',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#ef4444',
+    marginTop: 4,
+    fontWeight: '600',
   },
 });
 

@@ -21,20 +21,28 @@ import { RootStackParamList } from '../navigation';
 import {
   ParkingSection,
 } from '../features/parking/parkingSlice';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width } = Dimensions.get('window');
+const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const sections: ParkingSection[] = ['US', 'LS', 'B3'];
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const ParkingScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
   const { slots } = useSelector(
     (s: RootState) => s.parking,
   );
   const [activeSection, setActiveSection] = useState<ParkingSection>('US');
+  
+  // Responsive button bottom position
+  const buttonBottomOffset = useMemo(() => {
+    if (SCREEN_HEIGHT < 700) return 16; // Small screens
+    if (SCREEN_HEIGHT < 800) return 24; // Medium screens
+    return 32; // Large screens
+  }, []);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -231,6 +239,7 @@ const ParkingScreen: React.FC = () => {
           styles.buttonContainer,
           {
             opacity: fadeAnim,
+            bottom: buttonBottomOffset + insets.bottom,
           },
         ]}
       >
@@ -457,23 +466,20 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
     paddingHorizontal: 24,
-    paddingBottom: 20,
     paddingTop: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 8,
-    marginBottom : 20,
   },
   viewSlotsButton: {
     backgroundColor: '#0ea5e9',
     borderRadius: 20,
-    paddingVertical: 20,
+    paddingVertical: SCREEN_HEIGHT < 700 ? 18 : 20,
     paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
@@ -484,6 +490,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 8,
+    minHeight: SCREEN_HEIGHT < 700 ? 56 : 60,
   },
   viewSlotsIcon: {
     fontSize: 20,
@@ -493,7 +500,7 @@ const styles = StyleSheet.create({
   viewSlotsText: {
     color: '#fff',
     fontWeight: '800',
-    fontSize: 18,
+    fontSize: SCREEN_HEIGHT < 700 ? 16 : 18,
     letterSpacing: 0.5,
   },
 });

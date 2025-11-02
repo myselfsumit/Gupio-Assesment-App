@@ -6,6 +6,7 @@ import { Provider } from 'react-redux';
 import { store } from './src/app/store';
 import AppNavigator from './src/navigation';
 import Toast from 'react-native-toast-message';
+import { CustomToastConfig } from './src/components/CustomToast';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -15,7 +16,12 @@ function App() {
       <SafeAreaProvider>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <AppNavigator />
-        <Toast />
+        <Toast 
+          config={CustomToastConfig}
+          topOffset={60}
+          visibilityTime={3000}
+          autoHide={true}
+        />
       </SafeAreaProvider>
     </Provider>
   );

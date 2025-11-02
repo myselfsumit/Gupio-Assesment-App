@@ -1,5 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, Animated, Pressable } from 'react-native';
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { vehicleNumberSchema, VehicleNumberFormData } from '../validation/Validation';
 import { ParkingSlot } from '../features/parking/parkingSlice';
 
 type Props = {
@@ -11,7 +14,20 @@ type Props = {
 };
 
 const BookingModal: React.FC<Props> = ({ visible, slot, onConfirm, onCancel, showSuccess = false }) => {
-  const [vehicleNumber, setVehicleNumber] = useState('');
+  // Form with Zod validation
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isValid },
+    reset,
+  } = useForm<VehicleNumberFormData>({
+    resolver: zodResolver(vehicleNumberSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      vehicleNumber: '',
+    },
+  });
 
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -102,12 +118,12 @@ const BookingModal: React.FC<Props> = ({ visible, slot, onConfirm, onCancel, sho
     }
   }, [visible, showSuccess, backdropOpacity, opacityAnim, scaleAnim, successScale, successOpacity]);
 
-  // Reset vehicle info when modal is closed
+  // Reset form when modal is closed
   useEffect(() => {
     if (!visible) {
-      setVehicleNumber('');
+      reset();
     }
-  }, [visible]);
+  }, [visible, reset]);
 
   if (!slot && !showSuccess) return null;
 
@@ -193,16 +209,38 @@ const BookingModal: React.FC<Props> = ({ visible, slot, onConfirm, onCancel, sho
               {/* Vehicle Information */}
               <View style={styles.vehicleContainer}>
                 <Text style={styles.vehicleNumberLabel}>Vehicle Number</Text>
-                <View style={styles.vehicleNumberContainer}>
-                  <TextInput
-                    style={styles.vehicleNumberInput}
-                    placeholder="Enter your vehicle number"
-                    placeholderTextColor="#94a3b8"
-                    value={vehicleNumber}
-                    onChangeText={setVehicleNumber}
-                    autoCapitalize="characters"
-                  />
-                </View>
+                <Controller
+                  control={control}
+                  name="vehicleNumber"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <>
+                      <View
+                        style={[
+                          styles.vehicleNumberContainer,
+                          errors.vehicleNumber && styles.vehicleNumberContainerError,
+                        ]}
+                      >
+                        <TextInput
+                          style={styles.vehicleNumberInput}
+                          placeholder="e.g., MH12AB1234"
+                          placeholderTextColor="#94a3b8"
+                          value={value || ''}
+                          onChangeText={(text) => {
+                            // Allow spaces and alphanumeric, auto uppercase
+                            const cleaned = text.replace(/[^A-Z0-9\s]/gi, '').toUpperCase();
+                            onChange(cleaned);
+                          }}
+                          onBlur={onBlur}
+                          autoCapitalize="characters"
+                          maxLength={13} // Allow spaces: XX ## XX ####
+                        />
+                      </View>
+                      {errors.vehicleNumber && (
+                        <Text style={styles.errorText}>{errors.vehicleNumber.message}</Text>
+                      )}
+                    </>
+                  )}
+                />
               </View>
 
               {/* Action Buttons */}
@@ -210,11 +248,11 @@ const BookingModal: React.FC<Props> = ({ visible, slot, onConfirm, onCancel, sho
                 <TouchableOpacity
                   style={[
                     styles.confirmButton,
-                    !vehicleNumber.trim() && styles.confirmButtonDisabled
+                    !isValid && styles.confirmButtonDisabled,
                   ]}
-                  onPress={() => onConfirm(vehicleNumber)}
+                  onPress={handleSubmit((data) => onConfirm(data.vehicleNumber))}
                   activeOpacity={0.85}
-                  disabled={!vehicleNumber.trim()}
+                  disabled={!isValid}
                 >
                   <View style={styles.confirmButtonContent}>
                     <Text style={styles.confirmButtonText}>Confirm</Text>
@@ -243,8 +281,8 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: '#fff',
     borderRadius: 24,
-    width: '100%',
-    maxWidth: 600,
+    width: '85%',
+    // maxWidth: 600,
     padding: 32,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
@@ -458,6 +496,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#f9fafb',
   },
+  vehicleNumberContainerError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
+  },
   vehicleNumberInput: {
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -499,6 +541,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#cbd5e1',
     shadowOpacity: 0,
     elevation: 0,
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    marginTop: 6,
+    marginLeft: 4,
+    fontWeight: '500',
   },
 });
 

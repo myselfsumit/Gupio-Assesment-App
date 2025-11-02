@@ -110,11 +110,11 @@ const CancelConfirmationModal: React.FC<Props> = ({ visible, slotId, onConfirm, 
             </View>
 
             {/* Title */}
-            <Text style={styles.title}>Cancel Booking?</Text>
+            <Text style={styles.title}>Drop Vehicle?</Text>
 
             {/* Message */}
             <Text style={styles.message}>
-              Do you want to cancel your booking?
+              Do you want to drop the vehicle?
             </Text>
 
             {/* Slot Info */}
@@ -145,7 +145,7 @@ const CancelConfirmationModal: React.FC<Props> = ({ visible, slotId, onConfirm, 
                 onPress={handleConfirm}
                 activeOpacity={0.85}
               >
-                <Text style={styles.yesButtonText}>Yes, Cancel</Text>
+                <Text style={styles.yesButtonText}>Yes</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>

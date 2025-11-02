@@ -6,10 +6,13 @@ import {
   Animated,
   ScrollView,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
@@ -91,6 +94,7 @@ const StatCard: React.FC<StatCardProps> = ({
 };
 
 const DashboardScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -107,6 +111,13 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
   }, []);
 
   const employeeName = 'Sumit Kaushal';
+  
+  // Responsive button bottom position
+  const buttonBottomOffset = useMemo(() => {
+    if (SCREEN_HEIGHT < 700) return 16; // Small screens
+    if (SCREEN_HEIGHT < 800) return 24; // Medium screens
+    return 32; // Large screens
+  }, []);
 
   useEffect(() => {
     Animated.timing(headerAnim, {
@@ -206,7 +217,15 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
         </AnimatedView>
       </ScrollView>
 
-      <AnimatedView style={[styles.bottomButtonContainer, { opacity: fadeAnim }]}>
+      <AnimatedView 
+        style={[
+          styles.bottomButtonContainer, 
+          { 
+            opacity: fadeAnim,
+            bottom: buttonBottomOffset + insets.bottom,
+          }
+        ]}
+      >
         <TouchableOpacity
           style={styles.findParkingButton}
           onPress={() => navigation.navigate('Parking')}
@@ -407,29 +426,27 @@ const styles = StyleSheet.create({
   },
   bottomButtonContainer: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
     paddingHorizontal: 24,
-    paddingBottom: 20,
     paddingTop: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 8,
-    marginBottom: 20,
   },
   findParkingButton: {
     backgroundColor: '#0ea5e9',
     borderRadius: 16,
-    paddingVertical: 18,
+    paddingVertical: SCREEN_HEIGHT < 700 ? 16 : 18,
     paddingHorizontal: 24,
     shadowColor: '#0ea5e9',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 6,
+    minHeight: SCREEN_HEIGHT < 700 ? 52 : 56,
   },
   findParkingButtonContent: {
     flexDirection: 'row',
@@ -448,7 +465,7 @@ const styles = StyleSheet.create({
   },
   findParkingButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: SCREEN_HEIGHT < 700 ? 16 : 18,
     fontWeight: '700',
     letterSpacing: 0.5,
     lineHeight: 22,

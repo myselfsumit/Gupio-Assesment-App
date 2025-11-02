@@ -11,6 +11,9 @@ import {
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { ForgetPasswordFormData, forgetPasswordSchema, OtpFormData, otpSchema } from '../validation/Validation';
 
 type Props = {
   visible: boolean;
@@ -20,11 +23,38 @@ type Props = {
 
 const ForgotPasswordModal: React.FC<Props> = ({ visible, onClose, onSuccess }) => {
   const [step, setStep] = useState<'employeeId' | 'otp'>('employeeId');
-  const [employeeId, setEmployeeId] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const otpInputRefs = useRef<Array<TextInput | null>>([]);
-  const [isFocused, setIsFocused] = useState(false);
   const [focusedOtpIndex, setFocusedOtpIndex] = useState<number | null>(null);
+  
+  // Form for Employee ID
+  const {
+    control: employeeIdControl,
+    handleSubmit: handleEmployeeIdSubmit,
+    formState: { errors: employeeIdErrors, isValid: isEmployeeIdValid },
+    reset: resetEmployeeId,
+    getValues: getEmployeeIdValues,
+  } = useForm<ForgetPasswordFormData>({
+    resolver: zodResolver(forgetPasswordSchema),
+    mode: 'onChange',
+    defaultValues: {
+      employeeId: '',
+    },
+  });
+
+  // Form for OTP
+  const {
+    control: otpControl,
+    handleSubmit: handleOtpSubmit,
+    formState: { errors: otpErrors },
+    reset: resetOtp,
+  } = useForm<OtpFormData>({
+    resolver: zodResolver(otpSchema),
+    mode: 'onChange',
+    defaultValues: {
+      otp: '',
+    },
+  });
   
   // Mock OTP for validation
   const mockOtp = '123456';
@@ -39,7 +69,8 @@ const ForgotPasswordModal: React.FC<Props> = ({ visible, onClose, onSuccess }) =
     if (visible) {
       // Reset state when modal opens
       setStep('employeeId');
-      setEmployeeId('');
+      resetEmployeeId();
+      resetOtp();
       setOtp(['', '', '', '', '', '']);
       
       // Animate backdrop first
@@ -104,8 +135,11 @@ const ForgotPasswordModal: React.FC<Props> = ({ visible, onClose, onSuccess }) =
     }
   }, []);
 
-  const handleSendOTP = () => {
-    if (employeeId.trim()) {
+  const handleSendOTP = (data?: ForgetPasswordFormData) => {
+    // This will be called by form submission or directly
+    const employeeIdValue = data?.employeeId || '';
+    
+    if (employeeIdValue.trim()) {
       // Animate to OTP step
       Animated.sequence([
         Animated.timing(slideAnim, {
@@ -151,20 +185,19 @@ const ForgotPasswordModal: React.FC<Props> = ({ visible, onClose, onSuccess }) =
     }
   };
 
-  const handleVerifyOTP = () => {
-    const enteredOtp = otp.join('');
-    if (enteredOtp.length === 6) {
-      // Mock validation - check if OTP matches
-      if (enteredOtp === mockOtp) {
-        // Success - redirect to Dashboard
-        onSuccess();
-      } else {
-        // Show error (you can add toast here)
-        // For now, just reset OTP
-        setOtp(['', '', '', '', '', '']);
-        if (otpInputRefs.current[0]) {
-          otpInputRefs.current[0]?.focus();
-        }
+  const handleVerifyOTP = (data: OtpFormData) => {
+    const enteredOtp = data.otp;
+    // Mock validation - check if OTP matches
+    if (enteredOtp === mockOtp) {
+      // Success - redirect to Dashboard
+      onSuccess();
+    } else {
+      // Show error (you can add toast here)
+      // For now, just reset OTP
+      setOtp(['', '', '', '', '', '']);
+      resetOtp();
+      if (otpInputRefs.current[0]) {
+        otpInputRefs.current[0]?.focus();
       }
     }
   };
@@ -232,37 +265,48 @@ const ForgotPasswordModal: React.FC<Props> = ({ visible, onClose, onSuccess }) =
                   <Text style={styles.label}>
                     <Text style={styles.labelIcon}>👤</Text> Employee ID
                   </Text>
-                  <View style={[
-                    styles.inputContainer,
-                    isFocused && styles.inputContainerFocused,
-                  ]}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter your employee ID"
-                      placeholderTextColor="#94a3b8"
-                      value={employeeId}
-                      onChangeText={setEmployeeId}
-                      keyboardType="default"
-                      autoCapitalize="none"
-                      onFocus={() => setIsFocused(true)}
-                      onBlur={() => setIsFocused(false)}
-                      autoFocus
-                    />
-                  </View>
+                  <Controller
+                    control={employeeIdControl}
+                    name="employeeId"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <>
+                        <View style={[
+                          styles.inputContainer,
+                          employeeIdErrors.employeeId && styles.inputContainerError,
+                        ]}>
+                          <TextInput
+                            style={styles.input}
+                            placeholder="Enter your employee ID"
+                            placeholderTextColor="#94a3b8"
+                            value={value}
+                            onChangeText={onChange}
+                            onBlur={onBlur}
+                            keyboardType="default"
+                            autoCapitalize="characters"
+                            autoFocus
+                          />
+                        </View>
+                        {employeeIdErrors.employeeId && (
+                          <Text style={styles.errorText}>
+                            {employeeIdErrors.employeeId.message}
+                          </Text>
+                        )}
+                      </>
+                    )}
+                  />
                 </View>
 
                 {/* Send OTP Button */}
                 <TouchableOpacity
                   style={[
                     styles.primaryButton,
-                    !employeeId.trim() && styles.primaryButtonDisabled,
+                    !isEmployeeIdValid && styles.primaryButtonDisabled,
                   ]}
-                  onPress={handleSendOTP}
+                  onPress={handleEmployeeIdSubmit(handleSendOTP)}
                   activeOpacity={0.9}
-                  disabled={!employeeId.trim()}
+                  disabled={!isEmployeeIdValid}
                 >
                   <Text style={styles.primaryButtonText}>Send OTP</Text>
-                  {/* <Text style={styles.primaryButtonIcon}>→</Text> */}
                 </TouchableOpacity>
               </>
             ) : (
@@ -273,34 +317,58 @@ const ForgotPasswordModal: React.FC<Props> = ({ visible, onClose, onSuccess }) =
                 </Text>
 
                 {/* OTP Input Container */}
-                <View style={styles.otpContainer}>
-                  {otp.map((digit, index) => (
-                    <TextInput
-                      key={index}
-                      ref={(ref) => {
-                        otpInputRefs.current[index] = ref;
-                      }}
-                      style={[
-                        styles.otpInput,
-                        digit && styles.otpInputFilled,
-                        focusedOtpIndex === index && styles.otpInputFocused,
-                      ]}
-                      value={digit}
-                      onChangeText={(value) => handleOtpChange(index, value)}
-                      onKeyPress={({ nativeEvent }) => handleOtpKeyPress(index, nativeEvent.key)}
-                      keyboardType="number-pad"
-                      maxLength={1}
-                      selectTextOnFocus
-                      onFocus={() => setFocusedOtpIndex(index)}
-                      onBlur={() => setFocusedOtpIndex(null)}
-                    />
-                  ))}
-                </View>
+                <Controller
+                  control={otpControl}
+                  name="otp"
+                  render={({ field: { onChange } }) => (
+                    <>
+                      <View style={styles.otpContainer}>
+                        {otp.map((digit, index) => (
+                          <TextInput
+                            key={index}
+                            ref={(ref) => {
+                              otpInputRefs.current[index] = ref;
+                            }}
+                            style={[
+                              styles.otpInput,
+                              digit && styles.otpInputFilled,
+                              focusedOtpIndex === index && styles.otpInputFocused,
+                              otpErrors.otp && styles.otpInputError,
+                            ]}
+                            value={digit}
+                            onChangeText={(inputValue) => {
+                              handleOtpChange(index, inputValue);
+                              // Update form value
+                              const newOtp = [...otp];
+                              newOtp[index] = inputValue;
+                              onChange(newOtp.join(''));
+                            }}
+                            onKeyPress={({ nativeEvent }) => handleOtpKeyPress(index, nativeEvent.key)}
+                            keyboardType="number-pad"
+                            maxLength={1}
+                            selectTextOnFocus
+                            onFocus={() => setFocusedOtpIndex(index)}
+                            onBlur={() => setFocusedOtpIndex(null)}
+                          />
+                        ))}
+                      </View>
+                      {otpErrors.otp && (
+                        <Text style={styles.errorText}>{otpErrors.otp.message}</Text>
+                      )}
+                    </>
+                  )}
+                />
 
                 {/* Resend OTP */}
                 <TouchableOpacity 
                   style={styles.resendContainer}
-                  onPress={handleSendOTP}
+                  onPress={() => {
+                    // Get current employee ID value from form
+                    const currentEmployeeId = getEmployeeIdValues('employeeId');
+                    if (currentEmployeeId) {
+                      handleSendOTP({ employeeId: currentEmployeeId });
+                    }
+                  }}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.resendText}>
@@ -314,12 +382,11 @@ const ForgotPasswordModal: React.FC<Props> = ({ visible, onClose, onSuccess }) =
                     styles.primaryButton,
                     !isOtpComplete && styles.primaryButtonDisabled,
                   ]}
-                  onPress={handleVerifyOTP}
+                  onPress={handleOtpSubmit(handleVerifyOTP)}
                   activeOpacity={0.9}
                   disabled={!isOtpComplete}
                 >
                   <Text style={styles.primaryButtonText}>Verify OTP</Text>
-                  {/* <Text style={styles.primaryButtonIcon}>✓</Text> */}
                 </TouchableOpacity>
 
                 {/* Back Button */}
@@ -554,6 +621,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#60a5fa',
     fontWeight: '600',
+  },
+  inputContainerError: {
+    borderColor: '#ef4444',
+  },
+  otpInputError: {
+    borderColor: '#ef4444',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#ef4444',
+    marginTop: 6,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 

@@ -7,17 +7,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
-  ScrollView,
-  Dimensions,
   StyleSheet,
+  ScrollView,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
 import { login } from '../features/auth/authSlice';
-
-const { height } = Dimensions.get('window');
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { LoginFormData, loginSchema } from '../validation/Validation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -26,14 +26,28 @@ const AnimatedText = Animated.createAnimatedComponent(Text);
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const dispatch = useDispatch();
-  const [employeeId, setEmployeeId] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [isFocused, setIsFocused] = useState({
     employeeId: false,
     password: false,
   });
+
+  // Form with Zod validation
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isValid },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      employeeId: '',
+      password: '',
+    },
+  });
+
 
   // Optimized fade animations - no slide, just smooth fade
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -92,9 +106,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     ]).start();
   }, [fadeAnim, logoScale, logoOpacity, headerFade, formFade, footerFade]);
 
-  const handleSignIn = () => {
-    // Save customer ID to Redux
-    dispatch(login({ customerId: employeeId }));
+  const handleSignIn = (data: LoginFormData) => {
+    // Save customer ID to Redux (data.employeeId is already uppercase due to transform)
+    dispatch(login({ customerId: data.employeeId }));
     
     Animated.sequence([
       Animated.timing(buttonScale, {
@@ -107,7 +121,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         duration: 100,
         useNativeDriver: true,
       }),
-    ]).start(() => navigation.replace('Dashboard'));
+    ]).start(() => {
+      navigation.replace('Dashboard');
+    });
   };
 
   const handleForgotPassword = () => setShowForgotPasswordModal(true);
@@ -121,15 +137,22 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('Signup');
   };
 
+  // Refs for inputs
+  const employeeIdInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.keyboardContainer}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContainer}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        bounces={false}
       >
         {/* Main Container - Smooth Fade Only */}
         <AnimatedView style={[styles.mainContainer, { opacity: fadeAnim }]}>
@@ -171,38 +194,65 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.iconSpacing}>👤</Text> Employee ID
               </Text>
 
-              <AnimatedView
-                style={[
-                  styles.inputContainer,
-                  {
-                    borderColor: isFocused.employeeId ? '#3b82f6' : '#334155',
-                    shadowColor: isFocused.employeeId ? '#3b82f6' : '#000',
-                    shadowOffset: {
-                      width: 0,
-                      height: isFocused.employeeId ? 0 : 2,
-                    },
-                    shadowOpacity: isFocused.employeeId ? 0.3 : 0.1,
-                    shadowRadius: isFocused.employeeId ? 12 : 8,
-                    elevation: isFocused.employeeId ? 6 : 3,
-                  },
-                ]}
-              >
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your employee ID"
-                  placeholderTextColor="#94a3b8"
-                  value={employeeId}
-                  onChangeText={setEmployeeId}
-                  keyboardType="default"
-                  autoCapitalize="none"
-                  onFocus={() =>
-                    setIsFocused({ ...isFocused, employeeId: true })
-                  }
-                  onBlur={() =>
-                    setIsFocused({ ...isFocused, employeeId: false })
-                  }
-                />
-              </AnimatedView>
+              <Controller
+                control={control}
+                name="employeeId"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <>
+                    <AnimatedView
+                      style={[
+                        styles.inputContainer,
+                        {
+                          borderColor: errors.employeeId 
+                            ? '#ef4444' 
+                            : isFocused.employeeId 
+                            ? '#3b82f6' 
+                            : '#334155',
+                          shadowColor: errors.employeeId
+                            ? '#ef4444'
+                            : isFocused.employeeId ? '#3b82f6' : '#000',
+                          shadowOffset: {
+                            width: 0,
+                            height: isFocused.employeeId ? 0 : 2,
+                          },
+                          shadowOpacity: isFocused.employeeId ? 0.3 : 0.1,
+                          shadowRadius: isFocused.employeeId ? 12 : 8,
+                          elevation: isFocused.employeeId ? 6 : 3,
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        ref={employeeIdInputRef}
+                        style={styles.textInput}
+                        placeholder="Enter your employee ID"
+                        placeholderTextColor="#94a3b8"
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={() => {
+                          onBlur();
+                          setIsFocused({ ...isFocused, employeeId: false });
+                        }}
+                        onFocus={() => {
+                          setIsFocused({ ...isFocused, employeeId: true });
+                        }}
+                        keyboardType="default"
+                        autoCapitalize="characters"
+                        maxLength={6}
+                        returnKeyType="next"
+                        blurOnSubmit={false}
+                        onSubmitEditing={() => {
+                          passwordInputRef.current?.focus();
+                        }}
+                      />
+                    </AnimatedView>
+                    {errors.employeeId && (
+                      <Text style={styles.errorText}>
+                        {errors.employeeId.message}
+                      </Text>
+                    )}
+                  </>
+                )}
+              />
             </View>
 
             {/* Password */}
@@ -211,66 +261,92 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.iconSpacing}>🔒</Text> Password
               </Text>
 
-              <AnimatedView
-                style={[
-                  styles.passwordContainer,
-                  {
-                    borderColor: isFocused.password ? '#3b82f6' : '#334155',
-                    shadowColor: isFocused.password ? '#3b82f6' : '#000',
-                    shadowOffset: {
-                      width: 0,
-                      height: isFocused.password ? 0 : 2,
-                    },
-                    shadowOpacity: isFocused.password ? 0.3 : 0.1,
-                    shadowRadius: isFocused.password ? 12 : 8,
-                    elevation: isFocused.password ? 6 : 3,
-                  },
-                ]}
-              >
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#94a3b8"
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={setPassword}
-                  autoCapitalize="none"
-                  onFocus={() => setIsFocused({ ...isFocused, password: true })}
-                  onBlur={() => setIsFocused({ ...isFocused, password: false })}
-                />
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <>
+                    <AnimatedView
+                      style={[
+                        styles.passwordContainer,
+                        {
+                          borderColor: errors.password 
+                            ? '#ef4444' 
+                            : isFocused.password 
+                            ? '#3b82f6' 
+                            : '#334155',
+                          shadowColor: errors.password
+                            ? '#ef4444'
+                            : isFocused.password ? '#3b82f6' : '#000',
+                          shadowOffset: {
+                            width: 0,
+                            height: isFocused.password ? 0 : 2,
+                          },
+                          shadowOpacity: isFocused.password ? 0.3 : 0.1,
+                          shadowRadius: isFocused.password ? 12 : 8,
+                          elevation: isFocused.password ? 6 : 3,
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        ref={passwordInputRef}
+                        style={styles.passwordInput}
+                        placeholder="Enter your password"
+                        placeholderTextColor="#94a3b8"
+                        secureTextEntry={!showPassword}
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={() => {
+                          onBlur();
+                          setIsFocused({ ...isFocused, password: false });
+                        }}
+                        onFocus={() => setIsFocused({ ...isFocused, password: true })}
+                        autoCapitalize="none"
+                        returnKeyType="done"
+                        blurOnSubmit={true}
+                        onSubmitEditing={() => {
+                          if (isValid) {
+                            handleSubmit(handleSignIn)();
+                          }
+                        }}
+                      />
 
-                <TouchableOpacity
-                  style={styles.passwordToggle}
-                  onPress={() => setShowPassword(!showPassword)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.toggleIcon}>
-                    {showPassword ? '👁️' : '👁️‍🗨️'}
-                  </Text>
-                </TouchableOpacity>
-              </AnimatedView>
+                      <TouchableOpacity
+                        style={styles.passwordToggle}
+                        onPress={() => setShowPassword(!showPassword)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.toggleIcon}>
+                          {showPassword ? '👁️' : '👁️‍🗨️'}
+                        </Text>
+                      </TouchableOpacity>
+                    </AnimatedView>
+                    {errors.password && (
+                      <Text style={styles.errorText}>
+                        {errors.password.message}
+                      </Text>
+                    )}
+                  </>
+                )}
+              />
             </View>
 
             {/* Sign In */}
             <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
               <TouchableOpacity
-                onPress={handleSignIn}
+                onPress={handleSubmit(handleSignIn)}
                 activeOpacity={0.9}
-                disabled={!employeeId || !password}
+                disabled={!isValid}
                 style={[
                   styles.signInButton,
                   {
-                    backgroundColor:
-                      employeeId && password ? '#3b82f6' : '#334155',
-                    shadowColor: employeeId && password ? '#3b82f6' : undefined,
-                    shadowOffset:
-                      employeeId && password
-                        ? { width: 0, height: 8 }
-                        : undefined,
-                    shadowOpacity: employeeId && password ? 0.4 : undefined,
-                    shadowRadius: employeeId && password ? 16 : undefined,
-                    elevation: employeeId && password ? 8 : 3,
-                    opacity: employeeId && password ? 1 : 0.6,
+                    backgroundColor: isValid ? '#3b82f6' : '#334155',
+                    shadowColor: isValid ? '#3b82f6' : undefined,
+                    shadowOffset: isValid ? { width: 0, height: 8 } : undefined,
+                    shadowOpacity: isValid ? 0.4 : undefined,
+                    shadowRadius: isValid ? 16 : undefined,
+                    elevation: isValid ? 8 : 3,
+                    opacity: isValid ? 1 : 0.6,
                   },
                 ]}
               >
@@ -317,17 +393,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0f172a',
   },
-  scrollContainer: {
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+  },
+  scrollContent: {
     flexGrow: 1,
-    minHeight: height,
+    justifyContent: 'center',
+    paddingBottom: 20,
   },
   mainContainer: {
-    flex: 1,
     paddingHorizontal: 28,
     paddingTop: Platform.OS === 'ios' ? 80 : 60,
     paddingBottom: 40,
     justifyContent: 'center',
-    zIndex: 1,
   },
   logoContainer: {
     borderRadius: 50,
@@ -498,5 +577,12 @@ const styles = StyleSheet.create({
   footerHighlight: {
     color: '#60a5fa',
     fontWeight: '700',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#ef4444',
+    marginTop: 6,
+    fontWeight: '600',
+    paddingHorizontal: 4,
   },
 });
